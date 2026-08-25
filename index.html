@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="description" content="个人网站">
+    <meta name="author" content="zhangsanfeng25">
+
+    <title>我的个人网站</title>
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+    <!-- 网站顶部导航 -->
+    <header class="site-header">
+        <div class="container header-container">
+
+            <a href="index.html" class="logo">
+                我的个人网站
+            </a>
+
+            <nav class="navigation">
+                <a href="#home">首页</a>
+                <a href="#about">关于我</a>
+                <a href="#projects">项目</a>
+                <a href="#contact">联系我</a>
+            </nav>
+
+            <button class="menu-button" id="menuButton" type="button">
+                ☰
+            </button>
+
+        </div>
+    </header>
+
+
+    <!-- 网站主体 -->
+    <main>
+
+        <!-- 首页 -->
+        <section class="hero" id="home">
+
+            <div class="container hero-content">
+
+                <div class="hero-text">
+
+                    <p class="hero-label">
+                        PERSONAL WEBSITE
+                    </p>
+
+                    <h1>
+                        欢迎来到我的个人网站
+                    </h1>
+
+                    <p class="hero-description">
+                        这里将记录我的学习、生活、项目以及个人成长。
+                    </p>
+
+                    <div class="hero-buttons">
+
+                        <a href="#about" class="button primary-button">
+                            了解我
+                        </a>
+
+                        <a href="#projects" class="button secondary-button">
+                            查看项目
+                        </a>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- 关于我 -->
+        <section class="section" id="about">
+
+            <div class="container">
+
+                <div class="section-title">
+                    <p>ABOUT ME</p>
+                    <h2>关于我</h2>
+                </div>
+
+                <div class="about-content">
+
+                    <div class="about-card">
+
+                        <h3>个人介绍</h3>
+
+                        <p>
+                            这里可以填写你的个人介绍，例如学校、专业、
+                            兴趣爱好、技术方向以及未来的发展目标。
+                        </p>
+
+                    </div>
+
+                    <div class="about-card">
+
+                        <h3>技术方向</h3>
+
+                        <p>
+                            可以在这里记录你正在学习或者已经掌握的技术，
+                            例如 Java、Spring Boot、Vue、React、HTML、
+                            CSS、JavaScript 等。
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- 项目 -->
+        <section class="section section-gray" id="projects">
+
+            <div class="container">
+
+                <div class="section-title">
+                    <p>PROJECTS</p>
+                    <h2>我的项目</h2>
+                </div>
+
+                <div class="project-grid">
+
+                    <article class="project-card">
+
+                        <div class="project-number">
+                            01
+                        </div>
+
+                        <h3>个人网站</h3>
+
+                        <p>
+                            基于 HTML、CSS、JavaScript 和 GitHub Pages
+                            搭建的个人网站。
+                        </p>
+
+                    </article>
+
+
+                    <article class="project-card">
+
+                        <div class="project-number">
+                            02
+                        </div>
+
+                        <h3>学习项目</h3>
+
+                        <p>
+                            这里可以展示你的 Java、Vue、数据库等
+                            学习项目。
+                        </p>
+
+                    </article>
+
+
+                    <article class="project-card">
+
+                        <div class="project-number">
+                            03
+                        </div>
+
+                        <h3>未来项目</h3>
+
+                        <p>
+                            这里可以放置未来准备开发的项目。
+                        </p>
+
+                    </article>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- 联系 -->
+        <section class="section" id="contact">
+
+            <div class="container">
+
+                <div class="section-title">
+                    <p>CONTACT</p>
+                    <h2>联系我</h2>
+                </div>
+
+                <div class="contact-card">
+
+                    <p>
+                        如果以后需要添加联系方式，可以在这里填写
+                        GitHub、邮箱或者其他社交平台。
+                    </p>
+
+                    <a
+                        href="https://github.com/zhangsanfeng25"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="button primary-button"
+                    >
+                        我的 GitHub
+                    </a>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- 网站底部 -->
+    <footer class="site-footer">
+
+        <div class="container">
+
+            <p>
+                © <span id="currentYear"></span> 我的个人网站
+            </p>
+
+            <p>
+                Powered by GitHub Pages
+            </p>
+
+        </div>
+
+    </footer>
+
+
+    <script src="js/main.js"></script>
+
+</body>
+</html>
