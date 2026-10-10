@@ -3,6 +3,22 @@
   const $ = id => document.getElementById(id);
   const welcome = $('welcome'), workspace = $('workspace'), card = document.querySelector('.login-card'), dialog = $('content-dialog');
   const items = [];
+  // Mobile address-bar/keyboard height changes must not recrop the wallpaper.
+  let wallpaperWidth = -1;
+  function stabilizeWallpaper() {
+    const width = window.innerWidth;
+    if (width === wallpaperWidth) return;
+    wallpaperWidth = width;
+    const root = document.documentElement;
+    root.style.removeProperty('--wallpaper-height');
+    if (width <= 760) {
+      const layer = document.querySelector('.wallpaper');
+      const height = Math.max(window.innerHeight, layer.getBoundingClientRect().height);
+      root.style.setProperty('--wallpaper-height', `${height}px`);
+    }
+  }
+  stabilizeWallpaper();
+  window.addEventListener('resize', stabilizeWallpaper, {passive: true});
   document.documentElement.classList.add('js');
   if ('IntersectionObserver' in window) {
     const observer = new IntersectionObserver(entries => {
@@ -51,10 +67,9 @@
   $('add-content').addEventListener('click', openComposer); $('empty-add').addEventListener('click', openComposer);
   $('close-dialog').addEventListener('click', () => dialog.close());
   $('content-form').addEventListener('submit', event => {
-    event.preventDefault(); const title = $('content-name').value.trim(), file = $('content-image').files[0];
+    event.preventDefault(); const title = $('content-name').value.trim();
     if (!title) {$('content-message').textContent = '请填写标题。'; return;}
-    if (file && (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5*1024*1024)) {$('content-message').textContent = '请选择 5 MB 以内的 JPG、PNG 或 WebP 图片。'; return;}
-    items.push({title, text: $('content-text').value.trim(), image: file ? URL.createObjectURL(file) : null});
+    items.push({title, text: $('content-text').value.trim(), image: null});
     $('search').value = ''; render(); dialog.close(); $('content-form').reset();
   });
   function render() {
