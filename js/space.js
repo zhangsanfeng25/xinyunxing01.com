@@ -26,7 +26,7 @@
       const active = tab.dataset.view === view; tab.classList.toggle('active', active);
       if (active) tab.setAttribute('aria-current', 'page'); else tab.removeAttribute('aria-current');
     });
-    document.title = `${home ? '首页' : '内容'} · 演示模式 | xinyunxing01.com`;
+    document.title = `${home ? '首页' : '内容'} · 我的空间`;
     if (focus) $('page-title').focus({preventScroll: true});
   }
   $('login-form').addEventListener('submit', event => {
@@ -45,7 +45,7 @@
   $('logout').addEventListener('click', () => {
     if (dialog.open) dialog.close(); $('content-form').reset(); clearItems();
     workspace.hidden = true; welcome.hidden = false; window.scrollTo({top: 0, behavior: 'instant'});
-    document.querySelector('.nav-login').focus({preventScroll: true}); document.title = '我的空间 | xinyunxing01.com';
+    document.querySelector('.nav-login').focus({preventScroll: true}); document.title = '我的空间';
   });
   function openComposer() {$('content-form').reset(); $('content-message').textContent = ''; dialog.showModal();}
   $('add-content').addEventListener('click', openComposer); $('empty-add').addEventListener('click', openComposer);
