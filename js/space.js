@@ -47,7 +47,7 @@
   function setView(view, focus=false) {
     currentView=view;
     const labels={all:'全部帖子',discussions:'讨论',mine:'我的帖子',saved:'收藏',announcements:'公告',members:'成员',settings:'设置'};
-    $('page-title').textContent=labels[view];document.title=labels[view]+' · 我的空间';
+    $('page-title').textContent=labels[view];document.title='';
     document.querySelectorAll('[data-side]').forEach(el=>{const active=el.dataset.side===view;el.classList.toggle('active',active);if(active)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
     document.querySelectorAll('[data-top]').forEach(el=>{const active=el.dataset.top===(view==='announcements'?'announcements':view==='all'?'home':'discussions');el.classList.toggle('active',active);if(active)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
     $('members-panel').hidden=view!=='members';$('settings-panel').hidden=view!=='settings';
@@ -80,7 +80,7 @@
   $('profile-toggle').addEventListener('click',()=>{const open=$('profile-menu').hidden;$('profile-menu').hidden=!open;$('profile-toggle').setAttribute('aria-expanded',String(open));});
   document.addEventListener('click',event=>{if(!event.target.closest('.profile-area')){$('profile-menu').hidden=true;$('profile-toggle').setAttribute('aria-expanded','false');}});
   function clearItems(){items.length=0;selectedPost=null;$('search').value='';render();}
-  $('logout').addEventListener('click',()=>{if(dialog.open)dialog.close();if($('post-dialog').open)$('post-dialog').close();$('content-form').reset();$('reply-form').reset();clearItems();closeSidebar();$('profile-menu').hidden=true;$('profile-toggle').setAttribute('aria-expanded','false');workspace.hidden=true;welcome.hidden=false;window.scrollTo({top:0,behavior:'instant'});document.querySelector('.nav-login').focus({preventScroll:true});document.title='我的空间';});
+  $('logout').addEventListener('click',()=>{if(dialog.open)dialog.close();if($('post-dialog').open)$('post-dialog').close();$('content-form').reset();$('reply-form').reset();clearItems();closeSidebar();$('profile-menu').hidden=true;$('profile-toggle').setAttribute('aria-expanded','false');workspace.hidden=true;welcome.hidden=false;window.scrollTo({top:0,behavior:'instant'});document.querySelector('.nav-login').focus({preventScroll:true});document.title='';});
   function openComposer(){$('content-form').reset();$('content-message').textContent='';dialog.showModal();}
   $('add-content').addEventListener('click',openComposer);$('empty-add').addEventListener('click',openComposer);$('close-dialog').addEventListener('click',()=>dialog.close());
   $('content-form').addEventListener('submit',event=>{event.preventDefault();const title=$('content-name').value.trim();if(!title){$('content-message').textContent='请填写标题。';return;}items.push({id:nextId++,title,text:$('content-text').value.trim(),author:'我',date:new Date(),saved:false,replies:[]});$('search').value='';dialog.close();$('content-form').reset();setView('all');});
