@@ -44,7 +44,21 @@
     if(!factor.enrolled){if(typeof factor.qrCode==='string'&&factor.qrCode.startsWith('data:image/svg+xml'))$('mfa-qr').src=factor.qrCode;$('mfa-secret').textContent=factor.secret;}
     $('mfa-code').focus();
   }
-  $('send-code').addEventListener('click',async()=>{if(!$('account').reportValidity())return;const button=$('send-code');button.disabled=true;$('login-message').textContent='正在发送…';try{const result=await request('/auth/otp','POST',{email:$('account').value.trim()});$('login-message').textContent=result.message;setTimeout(()=>{button.disabled=false;},60000);}catch(error){$('login-message').textContent=errorText(error);button.disabled=false;}});
+  let otpResendUntil=0,otpResendTimer=null;
+  function updateOtpCountdown(){
+    const seconds=Math.max(0,Math.ceil((otpResendUntil-Date.now())/1000));
+    $('send-code-interval').textContent=seconds?`${seconds} 秒后重发`:'间隔 60 秒';
+    if(!seconds&&otpResendTimer!==null){clearInterval(otpResendTimer);otpResendTimer=null;$('send-code').disabled=false;}
+  }
+  updateOtpCountdown();
+  $('send-code').addEventListener('click',async()=>{
+    const button=$('send-code');if(button.disabled||!$('account').reportValidity())return;
+    button.disabled=true;$('login-message').textContent='正在发送…';
+    try{
+      const result=await request('/auth/otp','POST',{email:$('account').value.trim()});$('login-message').textContent=result.message;
+      otpResendUntil=Date.now()+60000;otpResendTimer=setInterval(updateOtpCountdown,1000);updateOtpCountdown();
+    }catch(error){$('login-message').textContent=errorText(error);button.disabled=false;}
+  });
   $('restart-login').addEventListener('click',async()=>{try{await request('/auth/logout','POST',{});resetLogin();$('email-code').value='';$('login-message').textContent='';}catch(error){$('login-message').textContent=errorText(error);}});
 
   // Lucide official icon SVGs, ISC licensed, https://github.com/lucide-icons/lucide.
@@ -53,16 +67,20 @@
     scope.querySelectorAll('[data-icon]').forEach(el => {el.innerHTML = icons[el.dataset.icon] || ''; const svg = el.querySelector('svg'); if(svg) {svg.setAttribute('aria-hidden','true'); svg.setAttribute('focusable','false');}});
   }
   putIcons();
-  let currentView = 'all', sort = 'latest', selectedPost = null, composer=null;
+  let currentView = 'all', sort = 'latest', selectedPost = null, composer=null, adminMemberFilter='',adminCursor=null,revokeTarget=null;
   function closeSidebar() {document.body.classList.remove('sidebar-open'); $('sidebar-backdrop').hidden=true; $('menu-toggle').setAttribute('aria-expanded','false');}
   function setView(view, focus=false) {
-    currentView=view;
-    const labels={all:'全部帖子',discussions:'讨论',mine:'我的帖子',saved:'收藏',announcements:'公告',members:'成员',settings:'设置'};
+    $('admin-nav').hidden=member?.role!=='admin';
+    if(['login-events','sessions'].includes(view)&&member?.role!=='admin')return;
+    currentView=view;adminCursor=null;
+    document.querySelector('.metrics-grid').hidden=view!=='all';
+    if(view==='all'&&member)refreshUsage();
+    const labels={all:'全部帖子',discussions:'讨论',mine:'我的帖子',saved:'收藏',announcements:'公告',members:'成员',settings:'设置','login-events':'登录与会话',sessions:'登录与会话'};
     $('page-title').textContent=labels[view];document.title='';
     document.querySelectorAll('[data-side]').forEach(el=>{const active=el.dataset.side===view;el.classList.toggle('active',active);if(active)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
     document.querySelectorAll('[data-top]').forEach(el=>{const active=el.dataset.top===(view==='announcements'?'announcements':view==='all'?'home':'discussions');el.classList.toggle('active',active);if(active)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
-    $('members-panel').hidden=view!=='members';$('settings-panel').hidden=view!=='settings';
-    const extra=['members','settings'].includes(view);
+    $('members-panel').hidden=view!=='members';$('settings-panel').hidden=view!=='settings';$('admin-panel').hidden=!['login-events','sessions'].includes(view);
+    const extra=['members','settings','login-events','sessions'].includes(view);
     document.querySelector('.feed-toolbar').hidden=extra||(view==='announcements'&&member?.role!=='admin');$('search').closest('label').hidden=view==='announcements';$('add-content').textContent=view==='announcements'?'发布公告':'发布帖子';$('member-form').hidden=view!=='members'||member?.role!=='admin';document.querySelector('.feed-sort').hidden=extra||view==='announcements';
     items.length=0;render();if(member)refreshView();closeSidebar();if(focus)$('page-title').focus({preventScroll:true});
   }
@@ -91,7 +109,7 @@
   $('profile-toggle').addEventListener('click',()=>{const open=$('profile-menu').hidden;$('profile-menu').hidden=!open;$('profile-toggle').setAttribute('aria-expanded',String(open));});
   document.addEventListener('click',event=>{if(!event.target.closest('.profile-area')){$('profile-menu').hidden=true;$('profile-toggle').setAttribute('aria-expanded','false');}});
   function clearItems(){items.length=0;selectedPost=null;$('search').value='';render();}
-  function leaveForum(){member=null;composer=null;$('member-form').reset();$('member-form').hidden=true;feedGeneration++;if(dialog.open)dialog.close();if($('post-dialog').open)$('post-dialog').close();$('content-form').reset();$('reply-form').reset();clearItems();['member-list','member-message','post-manage','announcement-list','post-detail-title','post-detail-meta','post-detail-text','reply-list'].forEach(id=>$(id).replaceChildren());drawUsage({status:'unavailable'});closeSidebar();$('profile-menu').hidden=true;$('profile-toggle').setAttribute('aria-expanded','false');workspace.hidden=true;welcome.hidden=false;resetLogin();window.scrollTo({top:0,behavior:'instant'});document.title='';}
+  function leaveForum(){member=null;composer=null;adminMemberFilter='';adminCursor=null;revokeTarget=null;if($('revoke-dialog').open)$('revoke-dialog').close();$('admin-filter').reset();$('admin-nav').hidden=true;$('member-form').reset();$('member-form').hidden=true;feedGeneration++;if(dialog.open)dialog.close();if($('post-dialog').open)$('post-dialog').close();$('content-form').reset();$('reply-form').reset();clearItems();['admin-records','admin-member','admin-message','admin-note','member-list','member-message','post-manage','announcement-list','post-detail-title','post-detail-meta','post-detail-text','reply-list'].forEach(id=>$(id).replaceChildren());drawUsage({status:'unavailable'});closeSidebar();$('profile-menu').hidden=true;$('profile-toggle').setAttribute('aria-expanded','false');workspace.hidden=true;welcome.hidden=false;resetLogin();window.scrollTo({top:0,behavior:'instant'});document.title='';}
   function enterForum(identity){member=identity;$('login-form').reset();resetLogin();$('login-message').textContent='';$('profile-name').textContent=identity.displayName;document.querySelector('#profile-toggle .avatar').textContent=[...identity.displayName][0];welcome.hidden=true;workspace.hidden=false;setView('all');refreshAnnouncements();refreshUsage();window.scrollTo({top:0,behavior:'instant'});$('page-title').focus({preventScroll:true});}
   $('logout').addEventListener('click',async()=>{$('logout').disabled=true;try{await request('/auth/logout','POST',{});leaveForum();}catch(error){$('forum-notice').textContent=errorText(error);}finally{$('logout').disabled=false;}});
   const mayEdit=item=>member&&(member.role==='admin'||item.authorId===member.id);
@@ -130,14 +148,27 @@
     edit.addEventListener('click',()=>openComposer(table,item));remove.addEventListener('click',()=>removeContent(table,item,remove));host.append(edit,remove);return host;
   }
   function renderPostActions(){const host=$('post-manage');host.replaceChildren();if(selectedPost)host.append(actions('posts',selectedPost));}
+  function provisioningMessage(result){return result.provisioningStatus==='ready'?'已准备好登录身份，成员可在登录页申请邮箱验证码。':result.provisioningStatus==='pending'?'身份正在准备，请稍后查看。':'身份准备未完成，可在成员列表重试；不会重复添加成员。';}
+  function renderMemberRow(person){
+    const row=document.createElement('article'),p=document.createElement('p');row.className='member-row';p.textContent=person.displayName+' · '+(person.role==='admin'?'超级管理员':'成员')+(person.status==='disabled'?' · 已停用':'');row.append(p);
+    if(member?.role!=='admin')return row;
+    const email=document.createElement('p'),state=document.createElement('p');email.textContent=person.email;state.textContent=({ready:'身份已就绪',pending:'身份准备中',error:'身份准备失败，可重试',legacy:'既有成员'})[person.provisioningStatus]||'既有成员';row.append(email,state);
+    if(person.role!=='admin'){
+      const toggle=document.createElement('button');toggle.textContent=person.status==='active'?'停用':'启用';toggle.addEventListener('click',async()=>{toggle.disabled=true;try{await request('/api/v1/members/'+person.id,'PATCH',{status:person.status==='active'?'disabled':'active'});await refreshView();}catch(error){$('member-message').textContent=errorText(error);}finally{toggle.disabled=false;}});row.append(toggle);
+      if(person.status==='active'&&person.provisioningStatus!=='ready'){
+        const retry=document.createElement('button');retry.textContent='重试准备';retry.addEventListener('click',async()=>{retry.disabled=true;try{const result=await request('/api/v1/members/'+person.id+'/provision','POST',{});$('member-message').textContent=provisioningMessage(result);await refreshView();}catch(error){$('member-message').textContent=errorText(error);}finally{retry.disabled=false;}});row.append(retry);
+      }
+    }
+    const logs=document.createElement('button');logs.textContent='登录记录';logs.addEventListener('click',()=>{adminMemberFilter=String(person.id);setView('login-events',true);});row.append(logs);return row;
+  }
   $('member-form').addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;
-    try{await request('/api/v1/members','POST',{email:$('member-email').value.trim(),displayName:$('member-name').value.trim()});if(!member)return;$('member-form').reset();$('member-message').textContent='已加入白名单。请在认证服务控制台邀请该邮箱，完成后即可使用邮箱验证码登录。';await refreshView();}
+    try{const result=await request('/api/v1/members','POST',{email:$('member-email').value.trim(),displayName:$('member-name').value.trim()});if(!member)return;$('member-form').reset();$('member-message').textContent=provisioningMessage(result);await refreshView();}
     catch(error){$('member-message').textContent=errorText(error);}finally{button.disabled=false;}
   });
   document.querySelectorAll('[data-sort]').forEach(el=>el.addEventListener('click',()=>{sort=el.dataset.sort;document.querySelectorAll('[data-sort]').forEach(button=>{const active=button===el;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});refreshView();}));
   const formatDate=date=>date.toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
   function render(){
-    const query=$('search').value.trim().toLocaleLowerCase();const extra=['members','settings','announcements'].includes(currentView);
+    const query=$('search').value.trim().toLocaleLowerCase();const extra=['members','settings','announcements','login-events','sessions'].includes(currentView);
     const filtered=items;
     const list=$('post-list');list.replaceChildren();
     if(!extra)filtered.forEach(item=>{const row=document.createElement('article');row.className='post-row';const avatar=document.createElement('span');avatar.className='avatar';avatar.textContent=[...item.authorName][0];const open=document.createElement('button');open.className='post-open';const title=document.createElement('h2');title.textContent=item.title;const meta=document.createElement('p');meta.textContent=item.authorName+' · '+formatDate(new Date(item.createdAt));open.append(title,meta);open.addEventListener('click',()=>openPost(item));const actions=document.createElement('div');actions.className='post-actions';const replies=document.createElement('button');replies.innerHTML='<span data-icon="message-square"></span><span></span>';replies.lastChild.textContent=item.replyCount;replies.setAttribute('aria-label','查看回复：'+item.replyCount);replies.addEventListener('click',()=>openPost(item));const save=document.createElement('button');save.innerHTML='<span data-icon="star"></span><span></span>';save.lastChild.textContent=item.bookmarkCount;save.classList.toggle('saved',!!item.bookmarked);save.setAttribute('aria-label',(item.bookmarked?'取消收藏：':'收藏：')+item.title);save.setAttribute('aria-pressed',String(!!item.bookmarked));save.addEventListener('click',async()=>{save.disabled=true;try{await request('/api/v1/posts/'+item.id+'/bookmark',item.bookmarked?'DELETE':'PUT',{});await refreshView();}catch(error){$('forum-notice').textContent=errorText(error);}finally{save.disabled=false;}});actions.append(replies,save);row.append(avatar,open,actions);putIcons(row);list.append(row);});
@@ -157,7 +188,8 @@
     if(!member)return;const generation=++feedGeneration;nextCursor=append?nextCursor:null;
     try{
       if(currentView==='settings')return;
-      if(currentView==='members'){const result=await request('/api/v1/members');if(generation!==feedGeneration||!member)return;const list=$('member-list');list.replaceChildren();result.items.forEach(person=>{const p=document.createElement('p');p.textContent=person.displayName+' · '+(person.role==='admin'?'超级管理员':'成员')+(person.status==='disabled'?' · 已停用':'');const row=document.createElement('article');row.className='member-row';row.append(p);if(member.role==='admin'){const email=document.createElement('p');email.textContent=person.email;row.append(email);if(person.role!=='admin'){const toggle=document.createElement('button');toggle.textContent=person.status==='active'?'停用':'启用';toggle.addEventListener('click',async()=>{toggle.disabled=true;try{await request('/api/v1/members/'+person.id,'PATCH',{status:person.status==='active'?'disabled':'active'});await refreshView();}catch(error){$('member-message').textContent=errorText(error);}finally{toggle.disabled=false;}});row.append(toggle);}}list.append(row);});return;}
+      if(['login-events','sessions'].includes(currentView)){await refreshAdmin(false,generation);return;}
+      if(currentView==='members'){const result=await request('/api/v1/members');if(generation!==feedGeneration||!member)return;const list=$('member-list');list.replaceChildren();result.items.forEach(person=>list.append(renderMemberRow(person)));return;}
       if(currentView==='announcements'){await refreshAnnouncements(true,generation);return;}
       const params=new URLSearchParams({sort:{latest:'newest',replies:'replies',saved:'bookmarks'}[sort],filter:currentView==='mine'?'mine':currentView==='saved'?'bookmarked':'all',q:$('search').value.trim()});if(append&&nextCursor)params.set('cursor',nextCursor);
       $('result-status').textContent='正在加载…';const result=await request('/api/v1/posts?'+params);if(generation!==feedGeneration||!member)return;
@@ -167,10 +199,39 @@
   async function refreshReplies(append=false){const post=selectedPost;if(!post)return;try{const params=new URLSearchParams();if(append&&replyCursor)params.set('cursor',replyCursor);const result=await request('/api/v1/posts/'+post.id+'/replies?'+params);if(!member||selectedPost!==post)return;if(!append)post.replies=[];post.replies.push(...result.items);replyCursor=result.nextCursor;renderReplies();}catch(error){$('reply-message').textContent=errorText(error);}}
   async function refreshAnnouncements(main=false,generation){try{const result=await request('/api/v1/announcements');if(!member||main&&(generation!==feedGeneration||currentView!=='announcements'))return;const list=main?$('post-list'):$('announcement-list');list.replaceChildren();if(!result.items.length){const p=document.createElement('p');p.className='announcement-empty';p.textContent='暂无已发布公告';list.append(p);}result.items.forEach(item=>{const article=document.createElement('article'),title=document.createElement('h3'),date=document.createElement('p'),body=document.createElement('p');title.textContent=item.title;date.textContent=formatDate(new Date(item.createdAt));body.textContent=item.body;article.append(title,date,body,actions('announcements',item));list.append(article);});}catch(error){$('forum-notice').textContent=errorText(error);}}
   $('load-more').addEventListener('click',async()=>{$('load-more').disabled=true;try{await refreshView(true);}finally{$('load-more').disabled=false;}});$('more-replies').addEventListener('click',async()=>{$('more-replies').disabled=true;try{await refreshReplies(true);}finally{$('more-replies').disabled=false;}});
+
+  function adminReason(value){return ({verified:'验证成功',otp_rejected:'邮箱验证未通过',mfa_rejected:'二重验证未通过',rate_limited:'请求过于频繁',provider_unavailable:'认证服务暂不可用',not_allowed:'访问未获准',session_invalid:'会话已失效',invalid_request:'输入或请求无效'})[value]||'未知';}
+  function renderLoginRecord(item,sessions){
+    const row=document.createElement('article');row.className='login-record';
+    const values=[['成员',(item.displayName||'未确认成员')+(item.email?' · '+item.email:'')],['时间',new Date(item.createdAt).toLocaleString('zh-CN')],['结果',sessions?(item.stage==='pending'?'等待二重验证':'有效会话'):(item.result==='success'?'成功':'失败')]];
+    values.forEach(([label,value])=>{const cell=document.createElement('div'),name=document.createElement('span'),body=document.createElement('p');name.className='record-label';name.textContent=label;body.textContent=value;cell.append(name,body);row.append(cell);});
+    const details=document.createElement('details'),summary=document.createElement('summary'),body=document.createElement('p');summary.textContent='查看详情';body.textContent='IP：'+(item.ip||'未知')+'\n地区：'+([item.country,item.region,item.city].filter(Boolean).join(' / ')||'未知')+'\n浏览器 / 系统：'+(item.userAgent||'未知')+'\n'+(sessions?'到期：'+new Date(item.expiresAt).toLocaleString('zh-CN'):'验证阶段：'+({email:'邮箱',mfa:'二重验证',session:'会话'})[item.stage]+'；'+adminReason(item.reason));details.append(summary,body);row.append(details);
+    if(sessions){const button=document.createElement('button');button.className='send-code';button.textContent='撤销会话';button.addEventListener('click',()=>{revokeTarget=item.managementId;$('revoke-description').textContent='撤销 '+(item.displayName||'该成员')+' 的此设备会话？该设备下次访问需要重新验证。';$('revoke-message').textContent='';$('revoke-dialog').showModal();});row.append(button);}
+    return row;
+  }
+  async function refreshAdmin(append=false,generation=feedGeneration){
+    if(member?.role!=='admin')return;const view=currentView,sessions=view==='sessions';$('admin-message').textContent='正在加载…';
+    $('admin-filter').hidden=sessions;$('admin-more').hidden=true;
+    document.querySelectorAll('[data-admin-view]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.adminView===view)));
+    try{
+      if(!sessions){const members=await request('/api/v1/members');if(!member||generation!==feedGeneration||currentView!==view)return;const select=$('admin-member');select.replaceChildren();const all=document.createElement('option');all.value='';all.textContent='全部成员';select.append(all);members.items.forEach(p=>{const option=document.createElement('option');option.value=String(p.id);option.textContent=p.displayName;select.append(option);});select.value=adminMemberFilter;}
+      const params=new URLSearchParams();if(!sessions){if(adminMemberFilter)params.set('memberId',adminMemberFilter);if($('admin-result').value)params.set('result',$('admin-result').value);for(const [id,key,end] of [['admin-from','from',false],['admin-to','to',true]]){if($(id).value){const time=new Date($(id).value+(end?'T23:59:59.999':'T00:00:00')).getTime();if(!Number.isFinite(time))throw new Error('日期无效');params.set(key,String(time));}}if(append&&adminCursor)params.set('cursor',adminCursor);}
+      const result=await request('/api/v1/admin/'+(sessions?'sessions':'login-events')+'?'+params);if(!member||generation!==feedGeneration||currentView!==view)return;
+      const list=$('admin-records');if(!append)list.replaceChildren();result.items.forEach(item=>list.append(renderLoginRecord(item,sessions)));adminCursor=result.nextCursor||null;$('admin-more').hidden=!adminCursor;
+      $('admin-message').textContent=result.failureLoggingLimited?'今天失败日志已达记录上限，记录可能不完整。':result.items.length?'已加载记录。':'暂无记录。';$('admin-note').textContent=sessions?result.note:'记录保留 90 天，最多 5,000 条；仅包含本次更新后的登录。地区和浏览器信息仅供参考。';
+    }catch(error){if(generation===feedGeneration)$('admin-message').textContent=errorText(error);}
+  }
+  $('admin-filter').addEventListener('submit',event=>{event.preventDefault();adminMemberFilter=$('admin-member').value;adminCursor=null;refreshView();});
+  $('admin-refresh').addEventListener('click',()=>refreshView());
+  $('admin-more').addEventListener('click',async()=>{const button=$('admin-more');button.disabled=true;try{await refreshAdmin(true);}finally{button.disabled=false;}});
+  document.querySelectorAll('[data-admin-view]').forEach(button=>button.addEventListener('click',()=>setView(button.dataset.adminView,true)));
+  $('revoke-cancel').addEventListener('click',()=>{$('revoke-dialog').close();revokeTarget=null;});
+  $('revoke-dialog').addEventListener('cancel',()=>{revokeTarget=null;});
+  $('revoke-confirm').addEventListener('click',async()=>{if(!revokeTarget)return;const button=$('revoke-confirm'),target=revokeTarget;button.disabled=true;try{await request('/api/v1/admin/sessions/'+target,'DELETE',{});$('revoke-dialog').close();revokeTarget=null;await refreshView();}catch(error){$('revoke-message').textContent=errorText(error);}finally{button.disabled=false;}});
   let searchTimer;$('search').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>refreshView(),300);});
   let usageRefreshBusy=false;
   async function refreshUsage(){
-    if(usageRefreshBusy||!member||document.hidden)return;
+    if(usageRefreshBusy||!member||document.hidden||currentView!=='all')return;
     usageRefreshBusy=true;
     try{const result=await request('/api/v1/usage');if(!member)return;drawUsage(result);}catch{document.querySelectorAll('.metric-source').forEach(el=>el.textContent='暂不可用');}finally{usageRefreshBusy=false;}
   }
@@ -187,13 +248,13 @@
   }
   let liveRefreshBusy=false;
   async function refreshLiveContent(){
-    if(liveRefreshBusy||!member||document.hidden||dialog.open||$('member-form').contains(document.activeElement))return;
+    if(liveRefreshBusy||!member||document.hidden||['login-events','sessions'].includes(currentView)||dialog.open||$('member-form').contains(document.activeElement))return;
     liveRefreshBusy=true;
     try{await refreshView();await refreshAnnouncements();if(selectedPost&&$('post-dialog').open&&!$('reply-text').value.trim())await refreshReplies();}
     finally{liveRefreshBusy=false;}
   }
   setInterval(()=>{refreshLiveContent();},20000);
-  setInterval(()=>{refreshUsage();},60000);
+  setInterval(()=>{refreshUsage();},30000);
   let restoringSession=false,sessionRestoreNeeded=true;
   async function restoreSession(){
     if(restoringSession||!sessionRestoreNeeded||member||loginStage!=='email')return;
