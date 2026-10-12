@@ -70,13 +70,13 @@
   let currentView = 'all', sort = 'latest', selectedPost = null, composer=null, adminMemberFilter='',adminCursor=null,revokeTarget=null;
   function closeSidebar() {document.body.classList.remove('sidebar-open'); $('sidebar-backdrop').hidden=true; $('menu-toggle').setAttribute('aria-expanded','false');}
   function setView(view, focus=false) {
-    $('admin-nav').hidden=member?.role!=='admin';
+    $('admin-nav').hidden=member?.role!=='admin';document.querySelectorAll('.admin-profile-action').forEach(button=>button.hidden=member?.role!=='admin');
     if(['login-events','sessions'].includes(view)&&member?.role!=='admin')return;
     currentView=view;adminCursor=null;
     document.querySelector('.metrics-grid').hidden=view!=='all';
     if(view==='all'&&member)refreshUsage();
     const labels={all:'全部帖子',discussions:'讨论',mine:'我的帖子',saved:'收藏',announcements:'公告',members:'成员',settings:'设置','login-events':'登录与会话',sessions:'登录与会话'};
-    $('page-title').textContent=labels[view];document.title='';
+    $('page-title').textContent=labels[view];document.title='躺平万岁';
     document.querySelectorAll('[data-side]').forEach(el=>{const active=el.dataset.side===view;el.classList.toggle('active',active);if(active)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
     document.querySelectorAll('[data-top]').forEach(el=>{const active=el.dataset.top===(view==='announcements'?'announcements':view==='all'?'home':'discussions');el.classList.toggle('active',active);if(active)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
     $('members-panel').hidden=view!=='members';$('settings-panel').hidden=view!=='settings';$('admin-panel').hidden=!['login-events','sessions'].includes(view);
@@ -106,10 +106,12 @@
       else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
     }
   });
+  $('profile-members').addEventListener('click',()=>{if(member?.role==='admin')setView('members',true);$('profile-menu').hidden=true;$('profile-toggle').setAttribute('aria-expanded','false');});
+  $('profile-logins').addEventListener('click',()=>{if(member?.role==='admin')setView('login-events',true);$('profile-menu').hidden=true;$('profile-toggle').setAttribute('aria-expanded','false');});
   $('profile-toggle').addEventListener('click',()=>{const open=$('profile-menu').hidden;$('profile-menu').hidden=!open;$('profile-toggle').setAttribute('aria-expanded',String(open));});
   document.addEventListener('click',event=>{if(!event.target.closest('.profile-area')){$('profile-menu').hidden=true;$('profile-toggle').setAttribute('aria-expanded','false');}});
   function clearItems(){items.length=0;selectedPost=null;$('search').value='';render();}
-  function leaveForum(){member=null;composer=null;adminMemberFilter='';adminCursor=null;revokeTarget=null;if($('revoke-dialog').open)$('revoke-dialog').close();$('admin-filter').reset();$('admin-nav').hidden=true;$('member-form').reset();$('member-form').hidden=true;feedGeneration++;if(dialog.open)dialog.close();if($('post-dialog').open)$('post-dialog').close();$('content-form').reset();$('reply-form').reset();clearItems();['admin-records','admin-member','admin-message','admin-note','member-list','member-message','post-manage','announcement-list','post-detail-title','post-detail-meta','post-detail-text','reply-list'].forEach(id=>$(id).replaceChildren());drawUsage({status:'unavailable'});closeSidebar();$('profile-menu').hidden=true;$('profile-toggle').setAttribute('aria-expanded','false');workspace.hidden=true;welcome.hidden=false;resetLogin();window.scrollTo({top:0,behavior:'instant'});document.title='';}
+  function leaveForum(){document.querySelectorAll('.admin-profile-action').forEach(button=>button.hidden=true);member=null;composer=null;adminMemberFilter='';adminCursor=null;revokeTarget=null;if($('revoke-dialog').open)$('revoke-dialog').close();$('admin-filter').reset();$('admin-nav').hidden=true;$('member-form').reset();$('member-form').hidden=true;feedGeneration++;if(dialog.open)dialog.close();if($('post-dialog').open)$('post-dialog').close();$('content-form').reset();$('reply-form').reset();clearItems();['admin-records','admin-member','admin-message','admin-note','member-list','member-message','post-manage','announcement-list','post-detail-title','post-detail-meta','post-detail-text','reply-list'].forEach(id=>$(id).replaceChildren());drawUsage({status:'unavailable'});closeSidebar();$('profile-menu').hidden=true;$('profile-toggle').setAttribute('aria-expanded','false');workspace.hidden=true;welcome.hidden=false;resetLogin();window.scrollTo({top:0,behavior:'instant'});document.title='躺平万岁';}
   function enterForum(identity){member=identity;$('login-form').reset();resetLogin();$('login-message').textContent='';$('profile-name').textContent=identity.displayName;document.querySelector('#profile-toggle .avatar').textContent=[...identity.displayName][0];welcome.hidden=true;workspace.hidden=false;setView('all');refreshAnnouncements();refreshUsage();window.scrollTo({top:0,behavior:'instant'});$('page-title').focus({preventScroll:true});}
   $('logout').addEventListener('click',async()=>{$('logout').disabled=true;try{await request('/auth/logout','POST',{});leaveForum();}catch(error){$('forum-notice').textContent=errorText(error);}finally{$('logout').disabled=false;}});
   const mayEdit=item=>member&&(member.role==='admin'||item.authorId===member.id);

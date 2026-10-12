@@ -27,3 +27,8 @@
 @media(max-width:760px){.login-record{display:block;margin:12px 0;padding:14px;border:1px solid #d7e5e8;border-radius:12px;background:#f4f9fa}.login-record>div{margin-bottom:12px}.admin-filter{grid-template-columns:minmax(0,1fr)}.admin-filter input,.admin-filter select{font-size:16px}.admin-tabs .send-code{font-size:13px;padding:10px}.member-row button{min-height:44px}}
 
 .send-code-row{display:flex;align-items:center;gap:12px;margin:4px 0 16px}.send-code-row .send-code{margin:0;font-size:13px;flex-shrink:0}.send-code-interval{font-size:12px;color:#4d686e;white-space:nowrap;font-variant-numeric:tabular-nums}
+
+/* Small branding and administrator shortcuts; original workspace retained. */
+.forum-brand{font-size:22px;min-width:164px;letter-spacing:1px}#profile-menu .admin-profile-action{display:flex;align-items:center;gap:9px;width:100%;min-height:44px;font-size:12px}#profile-menu .admin-profile-action[hidden]{display:none!important}#profile-menu .admin-profile-action svg{width:16px;height:16px}.forum-brand:focus-visible{outline:2px solid #287e8c;outline-offset:5px}
+@media(max-width:760px){.forum-brand{font-size:17px;min-width:0;letter-spacing:0}.forum-topbar{gap:6px}.forum-topbar nav{gap:2px}.top-tab{padding:0 5px}.intro h1{font-size:38px;letter-spacing:3px}.login-card h2{font-size:25px}}
+@media(max-width:390px){.forum-topbar{padding:0 10px;gap:4px}.forum-brand{font-size:16px}.top-tab{padding:0 4px;font-size:11px}}
