@@ -10,7 +10,7 @@
     if(hash==='#/help'||hash==='#/privacy')return {kind:'public',page:hash.slice(2)};
     const post=hash.match(/^#\/posts\/([1-9]\d*)$/);
     if(post&&Number.isSafeInteger(Number(post[1])))return {kind:'post',id:Number(post[1])};
-    const view=hash.match(/^#\/view\/(all|discussions|mine|saved|members|settings|profile|announcements|login-events|sessions)$/);
+    const view=hash.match(/^#\/view\/(all|discussions|mine|saved|members|settings|profile|announcements|load|login-events|sessions)$/);
     return view?{kind:'view',view:view[1]}:{kind:'missing'};
   }
   function readDisplayPreferences(storage) {
@@ -58,7 +58,7 @@
       if (entries.some(entry => entry.isIntersecting)) {card.classList.add('revealed'); observer.disconnect();}
     }, {threshold: .12}); observer.observe(card);
   } else card.classList.add('revealed');
-  let member=null,loginStage='email',factorId=null,apiQueue=Promise.resolve(),feedGeneration=0,nextCursor=null,replyCursor=null;
+  let member=null,guestLease=null,loginStage='email',factorId=null,apiQueue=Promise.resolve(),feedGeneration=0,nextCursor=null,replyCursor=null;
   let requestEpoch=0;
   const activeRequests=new Set();
   function invalidateRequests(){requestEpoch++;for(const controller of activeRequests)controller.abort();activeRequests.clear();}
@@ -111,22 +111,25 @@
     scope.querySelectorAll('[data-icon]').forEach(el => {el.innerHTML = icons[el.dataset.icon] || ''; const svg = el.querySelector('svg'); if(svg) {svg.setAttribute('aria-hidden','true'); svg.setAttribute('focusable','false');}});
   }
   putIcons();
-  let currentView = 'all', sort = 'latest', selectedPost = null, composer=null, adminMemberFilter='',adminCursor=null,revokeTarget=null;
+  let currentView = 'all', sort = 'latest', selectedPost = null, composer=null, adminMemberFilter='',adminCursor=null,revokeTarget=null,nextMemberCursor=null;
   function closeSidebar() {document.body.classList.remove('sidebar-open'); $('sidebar-backdrop').hidden=true; $('menu-toggle').setAttribute('aria-expanded','false');}
   function setView(view, focus=false) {
     $('admin-nav').hidden=member?.role!=='admin';document.querySelectorAll('.admin-profile-action').forEach(button=>button.hidden=member?.role!=='admin');
     if(['login-events','sessions'].includes(view)&&member?.role!=='admin')return;
+    if(member?.role==='guest'&&['mine','saved','members','profile','load'].includes(view)){showFeedback('游客只能浏览公开内容');return;}
     currentView=view;adminCursor=null;
-    document.querySelector('.metrics-grid').hidden=view!=='all';
-    if(view==='all'&&member)refreshUsage();
-    const labels={all:'全部帖子',discussions:'全部帖子',mine:'我的帖子',saved:'收藏',announcements:'公告',members:'成员',settings:'设置',profile:'个人区域','login-events':'登录与会话',sessions:'登录与会话'};
+    document.querySelector('.metrics-grid').hidden=view!=='load'||member?.role==='guest';
+    $('load-panel').hidden=view!=='load'||member?.role==='guest';
+    document.querySelector('.forum-columns').hidden=view==='load';
+    if(view==='load'&&member)refreshUsage();
+    const labels={all:'全部帖子',discussions:'全部帖子',mine:'我的帖子',saved:'收藏',announcements:'公告',members:'成员',settings:'设置',profile:'个人区域','login-events':'登录与会话',sessions:'登录与会话',load:'网站负载'};
     $('page-title').textContent=labels[view];document.title='躺平万岁';
     document.querySelectorAll('[data-side]').forEach(el=>{const active=el.dataset.side===view||(view==='discussions'&&el.dataset.side==='all');el.classList.toggle('active',active);if(active)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
     document.querySelectorAll('[data-top]').forEach(el=>{const active=el.dataset.top===(view==='announcements'?'announcements':view==='all'?'home':'discussions');el.classList.toggle('active',active);if(active)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
     $('members-panel').hidden=view!=='members';$('settings-panel').hidden=view!=='settings';$('profile-panel').hidden=view!=='profile';$('admin-panel').hidden=!['login-events','sessions'].includes(view);
-    const extra=['members','settings','profile','login-events','sessions'].includes(view);
+    const extra=['members','settings','profile','load','login-events','sessions'].includes(view);
     document.querySelector('.feed-toolbar').hidden=extra||(view==='announcements'&&member?.role!=='admin');$('search').closest('label').hidden=view==='announcements';$('add-content').textContent=view==='announcements'?'发布公告':'发布帖子';$('member-form').hidden=view!=='members'||member?.role!=='admin';document.querySelector('.feed-sort').hidden=extra||view==='announcements';
-    $('view-retry').hidden=true;syncViewRoute(view);items.length=0;render();if(member&&!restoringList)refreshView();closeSidebar();if(focus)$('page-title').focus({preventScroll:true});
+    $('view-retry').hidden=true;syncViewRoute(view);items.length=0;render();if(member&&!restoringList)refreshView();closeSidebar();if(focus)$(view==='load'?'load-title':'page-title').focus({preventScroll:true});
   }
   $('login-form').addEventListener('submit',async event=>{
     event.preventDefault();$('enter-space').disabled=true;$('login-message').dataset.state='loading';$('login-message').textContent='正在验证…';
@@ -155,12 +158,13 @@
   $('profile-toggle').addEventListener('click',()=>{const open=$('profile-menu').hidden;$('profile-menu').hidden=!open;$('profile-toggle').setAttribute('aria-expanded',String(open));});
   document.addEventListener('click',event=>{if(!event.target.closest('.profile-area')){$('profile-menu').hidden=true;$('profile-toggle').setAttribute('aria-expanded','false');}});
   function clearItems(){items.length=0;selectedPost=null;$('search').value='';render();}
-  function leaveForum(){invalidateRequests();routeGeneration++;knownPost=null;postOriginElement=null;history.replaceState(null,'',location.href);finishDelete(false);document.querySelectorAll('.admin-profile-action').forEach(button=>button.hidden=true);member=null;composer=null;adminMemberFilter='';adminCursor=null;revokeTarget=null;if($('revoke-dialog').open)$('revoke-dialog').close();$('admin-filter').reset();$('admin-nav').hidden=true;$('member-form').reset();$('member-form').hidden=true;feedGeneration++;if(dialog.open)dialog.close();if($('post-dialog').open)$('post-dialog').close();$('content-form').reset();$('reply-form').reset();clearItems();['admin-records','admin-member','admin-message','admin-note','member-list','member-message','post-manage','announcement-list','post-detail-title','post-detail-meta','post-detail-text','reply-list'].forEach(id=>$(id).replaceChildren());drawUsage({status:'unavailable'});closeSidebar();$('profile-menu').hidden=true;$('profile-toggle').setAttribute('aria-expanded','false');workspace.hidden=true;welcome.hidden=false;resetLogin();window.scrollTo({top:0,behavior:'instant'});document.title='躺平万岁';applyCurrentRoute();}
-  function enterForum(identity){invalidateRequests();member=identity;$('login-form').reset();resetLogin();$('login-message').textContent='';$('profile-name').textContent=identity.displayName;document.querySelector('#profile-toggle .avatar').textContent=[...identity.displayName][0];$('identity-name').textContent=identity.displayName;$('identity-role').textContent=identity.role==='admin'?'超级管理员':'成员';$('identity-avatar').textContent=[...identity.displayName][0];welcome.hidden=true;workspace.hidden=false;applyCurrentRoute();refreshAnnouncements();window.scrollTo({top:0,behavior:'instant'});}
-  $('logout').addEventListener('click',async()=>{$('logout').disabled=true;try{await request('/auth/logout','POST',{});leaveForum();}catch(error){$('forum-notice').textContent=errorText(error);}finally{$('logout').disabled=false;}});
-  const mayEdit=item=>member&&(member.role==='admin'||item.authorId===member.id);
+  function leaveForum(){invalidateRequests();routeGeneration++;knownPost=null;postOriginElement=null;history.replaceState(null,'',location.href);finishDelete(false);document.querySelectorAll('.admin-profile-action').forEach(button=>button.hidden=true);member=null;guestLease=null;composer=null;adminMemberFilter='';adminCursor=null;revokeTarget=null;if($('revoke-dialog').open)$('revoke-dialog').close();$('admin-filter').reset();$('admin-nav').hidden=true;$('member-form').reset();$('member-form').hidden=true;feedGeneration++;if(dialog.open)dialog.close();if($('post-dialog').open)$('post-dialog').close();$('content-form').reset();$('reply-form').reset();clearItems();['admin-records','admin-member','admin-message','admin-note','member-list','member-message','post-manage','announcement-list','post-detail-title','post-detail-meta','post-detail-text','reply-list'].forEach(id=>$(id).replaceChildren());drawUsage({status:'unavailable'});closeSidebar();$('profile-menu').hidden=true;$('profile-toggle').setAttribute('aria-expanded','false');workspace.hidden=true;welcome.hidden=false;resetLogin();window.scrollTo({top:0,behavior:'instant'});document.title='躺平万岁';applyCurrentRoute();}
+  function enterForum(identity){const priorGuest=guestLease;if(identity.role!=='guest'&&priorGuest)broadcastGuest('member',priorGuest.leaseVersion);invalidateRequests();member=identity;guestLease=identity.role==='guest'?identity:null;applyIdentityUI();$('login-form').reset();resetLogin();$('login-message').textContent='';$('profile-name').textContent=identity.displayName;document.querySelector('#profile-toggle .avatar').textContent=[...identity.displayName][0];$('identity-name').textContent=identity.displayName;$('identity-role').textContent=identity.role==='admin'?'超级管理员':identity.role==='guest'?'游客 · 只读':'成员';$('identity-avatar').textContent=[...identity.displayName][0];welcome.hidden=true;workspace.hidden=false;applyCurrentRoute();refreshAnnouncements();window.scrollTo({top:0,behavior:'instant'});}
+  $('logout').addEventListener('click',async()=>{$('logout').disabled=true;try{await withGuestLock(()=>request(member?.role==='guest'?'/api/v1/guest/leave':'/auth/logout','POST',member?.role==='guest'?{leaseVersion:member.leaseVersion}:{}));if(member?.role==='guest')broadcastGuest('leave',member.leaseVersion);leaveForum();history.replaceState(null,'','#intro');applyCurrentRoute();}catch(error){$('forum-notice').textContent=errorText(error);}finally{$('logout').disabled=false;}});
+  const mayEdit=item=>member&&member.role!=='guest'&&(member.role==='admin'||item.authorId===member.id);
   let draftInitial={title:'',body:''},discardAction=null;
   function openComposer(table=currentView==='announcements'?'announcements':'posts',item=null){
+    if(!member||member.role==='guest')return;
     composer={table,item};$('content-form').reset();$('content-form').querySelector('[type="submit"]').disabled=false;$('content-message').textContent='';
     const reply=table==='replies';$('content-name').closest('.field').hidden=reply;$('content-name').disabled=reply;$('content-name').required=!reply;
     $('content-text').maxLength=reply?2000:10000;$('content-text').required=reply;
@@ -205,6 +209,7 @@
   $('delete-dialog').addEventListener('cancel',event=>{event.preventDefault();finishDelete(false);});
   $('delete-dialog').addEventListener('close',()=>finishDelete(false));
   function actions(table,item){const host=document.createElement('div');host.className='content-actions';
+    if(member?.role==='admin'&&table!=='replies'){const visibility=document.createElement('button');visibility.textContent=item.is_public?'设为仅成员可见':'设为游客可读';visibility.addEventListener('click',async()=>{visibility.disabled=true;try{await request('/api/v1/admin/visibility/'+table+'/'+item.id,'PATCH',{public:!item.is_public,version:item.version});await refreshView();await refreshAnnouncements();if(selectedPost?.id===item.id)await applyCurrentRoute();showFeedback('公开范围已更新');}catch(error){showFeedback(errorText(error),true);}finally{visibility.disabled=false;}});host.append(visibility);}
     if(table==='announcements'?member?.role!=='admin':!mayEdit(item))return host;
     const edit=document.createElement('button'),remove=document.createElement('button');edit.textContent='编辑';remove.textContent='删除';
     edit.addEventListener('click',()=>openComposer(table,item));remove.addEventListener('click',()=>removeContent(table,item,remove));host.append(edit,remove);return host;
@@ -215,12 +220,13 @@
     const row=document.createElement('article'),p=document.createElement('p');row.className='member-row';p.textContent=person.displayName+' · '+(person.role==='admin'?'超级管理员':'成员')+(person.status==='disabled'?' · 已停用':'');row.append(p);
     if(member?.role!=='admin')return row;
     const email=document.createElement('p'),state=document.createElement('p');email.textContent=person.email;state.textContent=({ready:'身份已就绪',pending:'身份准备中',error:'身份准备失败，可重试',legacy:'既有成员'})[person.provisioningStatus]||'既有成员';row.append(email,state);
-    if(person.role!=='admin'){
+    if(person.id!==member.id){
       const toggle=document.createElement('button');toggle.textContent=person.status==='active'?'停用':'启用';toggle.addEventListener('click',async()=>{toggle.disabled=true;try{await request('/api/v1/members/'+person.id,'PATCH',{status:person.status==='active'?'disabled':'active'});await refreshView();}catch(error){$('member-message').textContent=errorText(error);}finally{toggle.disabled=false;}});row.append(toggle);
       if(person.status==='active'&&person.provisioningStatus!=='ready'){
         const retry=document.createElement('button');retry.textContent='重试准备';retry.addEventListener('click',async()=>{retry.disabled=true;try{const result=await request('/api/v1/members/'+person.id+'/provision','POST',{});$('member-message').textContent=provisioningMessage(result);await refreshView();}catch(error){$('member-message').textContent=errorText(error);}finally{retry.disabled=false;}});row.append(retry);
       }
     }
+    if(person.id!==member.id){const roleButton=document.createElement('button');roleButton.textContent=person.role==='admin'?'改为成员':'设为管理员';roleButton.addEventListener('click',async()=>{roleButton.disabled=true;try{await request('/api/v1/members/'+person.id,'PATCH',{role:person.role==='admin'?'member':'admin'});$('member-message').textContent='权限已更新，对方需重新登录';await refreshView();}catch(error){$('member-message').textContent=errorText(error);}finally{roleButton.disabled=false;}});row.append(roleButton);}
     const logs=document.createElement('button');logs.textContent='登录记录';logs.addEventListener('click',()=>{adminMemberFilter=String(person.id);setView('login-events',true);});row.append(logs);return row;
   }
   $('member-form').addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter;if(button.disabled)return;button.disabled=true;
@@ -230,14 +236,14 @@
   document.querySelectorAll('[data-sort]').forEach(el=>el.addEventListener('click',()=>{sort=el.dataset.sort;document.querySelectorAll('[data-sort]').forEach(button=>{const active=button===el;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});refreshView();}));
   const formatDate=date=>date.toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
   function render(){
-    const query=$('search').value.trim().toLocaleLowerCase();const extra=['members','settings','profile','announcements','login-events','sessions'].includes(currentView);
+    const query=$('search').value.trim().toLocaleLowerCase();const extra=['members','settings','profile','announcements','load','login-events','sessions'].includes(currentView);
     $('clear-search').hidden=!query;
     const filtered=items;
     const list=$('post-list');list.replaceChildren();
-    if(!extra)filtered.forEach(item=>{const row=document.createElement('article');row.className='post-row';const avatar=document.createElement('span');avatar.className='avatar';avatar.textContent=[...item.authorName][0];const open=document.createElement('button');open.className='post-open';const title=document.createElement('h2');title.textContent=item.title;const meta=document.createElement('p');meta.textContent=item.authorName+' · '+formatDate(new Date(item.createdAt));const excerpt=document.createElement('p');excerpt.className='post-excerpt';excerpt.textContent=(item.body||'').replace(/\s+/g,' ').slice(0,180);open.dataset.postId=String(item.id);open.append(title,excerpt,meta);open.addEventListener('click',()=>openPost(item));const actions=document.createElement('div');actions.className='post-actions';const replies=document.createElement('button');replies.innerHTML='<span data-icon="message-square"></span><span></span>';replies.lastChild.textContent=item.replyCount;replies.setAttribute('aria-label','查看回复：'+item.replyCount);replies.addEventListener('click',()=>openPost(item));const save=document.createElement('button');save.innerHTML='<span data-icon="star"></span><span></span>';save.lastChild.textContent=item.bookmarkCount;save.classList.toggle('saved',!!item.bookmarked);save.setAttribute('aria-label',(item.bookmarked?'取消收藏：':'收藏：')+item.title);save.setAttribute('aria-pressed',String(!!item.bookmarked));save.addEventListener('click',async()=>{save.disabled=true;try{await request('/api/v1/posts/'+item.id+'/bookmark',item.bookmarked?'DELETE':'PUT',{});await refreshView();showFeedback(item.bookmarked?'已取消收藏':'已收藏');}catch(error){$('forum-notice').textContent=errorText(error);}finally{save.disabled=false;}});actions.append(replies,save);row.append(avatar,open,actions);putIcons(row);list.append(row);});
+    if(!extra)filtered.forEach(item=>{const row=document.createElement('article');row.className='post-row';const avatar=document.createElement('span');avatar.className='avatar';avatar.textContent=[...item.authorName][0];const open=document.createElement('button');open.className='post-open';const title=document.createElement('h2');title.textContent=item.title;const meta=document.createElement('p');meta.textContent=item.authorName+' · '+formatDate(new Date(item.createdAt));const excerpt=document.createElement('p');excerpt.className='post-excerpt';excerpt.textContent=(item.body||'').replace(/\s+/g,' ').slice(0,180);open.dataset.postId=String(item.id);open.append(title,excerpt,meta);open.addEventListener('click',()=>openPost(item));const actions=document.createElement('div');actions.className='post-actions';const replies=document.createElement('button');replies.innerHTML='<span data-icon="message-square"></span><span></span>';replies.lastChild.textContent=item.replyCount;replies.setAttribute('aria-label','查看回复：'+item.replyCount);replies.addEventListener('click',()=>openPost(item));const save=document.createElement('button');save.innerHTML='<span data-icon="star"></span><span></span>';save.lastChild.textContent=item.bookmarkCount;save.classList.toggle('saved',!!item.bookmarked);save.setAttribute('aria-label',(item.bookmarked?'取消收藏：':'收藏：')+item.title);save.setAttribute('aria-pressed',String(!!item.bookmarked));save.addEventListener('click',async()=>{save.disabled=true;try{await request('/api/v1/posts/'+item.id+'/bookmark',item.bookmarked?'DELETE':'PUT',{});await refreshView();showFeedback(item.bookmarked?'已取消收藏':'已收藏');}catch(error){$('forum-notice').textContent=errorText(error);}finally{save.disabled=false;}});save.hidden=member?.role==='guest';actions.append(replies,save);row.append(avatar,open,actions);putIcons(row);list.append(row);});
     $('empty-state').hidden=extra||filtered.length>0;
     $('empty-title').textContent=currentView==='saved'?'还没有收藏':query?'没有找到相关帖子':'还没有帖子';
-    $('empty-description').textContent=currentView==='saved'?'点击帖子右侧的星标，留下想再读的内容。':query?'试试其他关键词。':'从一段文字开始交流。';$('empty-add').hidden=currentView==='saved'||!!query;
+    $('empty-description').textContent=currentView==='saved'?'点击帖子右侧的星标，留下想再读的内容。':query?'试试其他关键词。':'从一段文字开始交流。';$('empty-add').hidden=member?.role==='guest'||currentView==='saved'||!!query;
     $('result-status').textContent=extra?'':items.length?'已加载 '+filtered.length+' 篇帖子':'';
     $('load-more').hidden=extra||!nextCursor;
   }
@@ -249,21 +255,23 @@
   $('more-announcements').addEventListener('click',()=>setView('announcements',true));
   $('motion-toggle').addEventListener('change',()=>{displayPreferences.motion=$('motion-toggle').checked;saveDisplayPreferences();});
   async function refreshView(append=false){
-    if(!member)return;const generation=++feedGeneration;nextCursor=append?nextCursor:null;
+    if(!member||currentView==='load')return;const generation=++feedGeneration;nextCursor=append?nextCursor:null;
     try{
       if(currentView==='settings'||currentView==='profile')return;
       if(['login-events','sessions'].includes(currentView)){await refreshAdmin(false,generation);return;}
-      if(currentView==='members'){const result=await request('/api/v1/members');if(generation!==feedGeneration||!member)return;const list=$('member-list');list.replaceChildren();result.items.forEach(person=>list.append(renderMemberRow(person)));return;}
+      if(currentView==='members'){const params=new URLSearchParams({limit:'50'});if(append&&nextMemberCursor)params.set('cursor',nextMemberCursor);const result=await request('/api/v1/members?'+params);if(generation!==feedGeneration||!member||currentView!=='members')return;const list=$('member-list');if(!append)list.replaceChildren();result.items.forEach(person=>list.append(renderMemberRow(person)));nextMemberCursor=result.nextCursor||null;$('members-more').hidden=!nextMemberCursor;return;}
       if(currentView==='announcements'){await refreshAnnouncements(true,generation);return;}
       const params=new URLSearchParams({sort:{latest:'newest',replies:'replies',saved:'bookmarks'}[sort],filter:currentView==='mine'?'mine':currentView==='saved'?'bookmarked':'all',q:$('search').value.trim()});if(append&&nextCursor)params.set('cursor',nextCursor);
       $('result-status').textContent='正在加载…';const result=await request('/api/v1/posts?'+params);if(generation!==feedGeneration||!member)return;
-      if(!append)items.length=0;items.push(...result.items);nextCursor=result.nextCursor;render();persistListState();$('forum-notice').textContent='仅已登录的指定成员可见。';
+      if(!append)items.length=0;items.push(...result.items);nextCursor=result.nextCursor;render();persistListState();$('forum-notice').textContent=member.role==='guest'?'游客只读访问：可以搜索和浏览公开内容，登录后可参与交流。':'成员可以参与交流；新帖子和公告默认游客可读。';
     }catch(error){if(generation===feedGeneration){$('result-status').textContent=errorText(error);$('empty-state').hidden=true;$('view-retry').hidden=!member;}}
   }
   async function refreshReplies(append=false){const post=selectedPost;if(!post)return;$('reply-retry').hidden=true;$('reply-message').dataset.state='loading';$('reply-message').textContent='正在加载回复…';try{const params=new URLSearchParams();if(append&&replyCursor)params.set('cursor',replyCursor);const result=await request('/api/v1/posts/'+post.id+'/replies?'+params);if(!member||selectedPost!==post)return;if(!append)post.replies=[];post.replies.push(...result.items);replyCursor=result.nextCursor;renderReplies();$('reply-message').textContent='';}catch(error){if(member&&selectedPost===post){$('reply-message').dataset.state='error';$('reply-message').textContent=errorText(error);$('reply-retry').hidden=false;}}}
   async function refreshAnnouncements(main=false,generation){try{const result=await request('/api/v1/announcements');if(!member||main&&(generation!==feedGeneration||currentView!=='announcements'))return;const list=main?$('post-list'):$('announcement-list');list.replaceChildren();if(!result.items.length){const p=document.createElement('p');p.className='announcement-empty';p.textContent='暂无已发布公告';list.append(p);}result.items.forEach(item=>{const article=document.createElement('article'),title=document.createElement('h3'),date=document.createElement('p'),body=document.createElement('p');title.textContent=item.title;date.textContent=formatDate(new Date(item.createdAt));body.textContent=item.body;article.append(title,date,body,actions('announcements',item));list.append(article);});}catch(error){if(member&&(!main||generation===feedGeneration)){$('forum-notice').textContent=errorText(error);if(main)$('view-retry').hidden=false;}}}
   $('load-more').addEventListener('click',async()=>{$('load-more').disabled=true;try{await refreshView(true);}finally{$('load-more').disabled=false;}});$('more-replies').addEventListener('click',async()=>{$('more-replies').disabled=true;try{await refreshReplies(true);}finally{$('more-replies').disabled=false;}});
 
+  $('members-more').addEventListener('click',async()=>{const button=$('members-more');button.disabled=true;try{await refreshView(true);}finally{button.disabled=false;}});
+  async function readMemberOptions(){const identity=member?.id,epoch=requestEpoch,items=[];let cursor=null;do{const params=new URLSearchParams({limit:'100'});if(cursor)params.set('cursor',cursor);const result=await request('/api/v1/members?'+params);if(epoch!==requestEpoch||member?.id!==identity)throw new Error('登录状态已变化');items.push(...result.items);cursor=result.nextCursor||null;}while(cursor);return {items};}
   function adminReason(value){return ({verified:'验证成功',otp_rejected:'邮箱验证未通过',mfa_rejected:'二重验证未通过',rate_limited:'请求过于频繁',provider_unavailable:'认证服务暂不可用',not_allowed:'访问未获准',session_invalid:'会话已失效',invalid_request:'输入或请求无效'})[value]||'未知';}
   function renderLoginRecord(item,sessions){
     const row=document.createElement('article');row.className='login-record';
@@ -278,7 +286,7 @@
     $('admin-filter').hidden=sessions;$('admin-more').hidden=true;
     document.querySelectorAll('[data-admin-view]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.adminView===view)));
     try{
-      if(!sessions){const members=await request('/api/v1/members');if(!member||generation!==feedGeneration||currentView!==view)return;const select=$('admin-member');select.replaceChildren();const all=document.createElement('option');all.value='';all.textContent='全部成员';select.append(all);members.items.forEach(p=>{const option=document.createElement('option');option.value=String(p.id);option.textContent=p.displayName;select.append(option);});select.value=adminMemberFilter;}
+      if(!sessions){const members=await readMemberOptions();if(!member||generation!==feedGeneration||currentView!==view)return;const select=$('admin-member');select.replaceChildren();const all=document.createElement('option');all.value='';all.textContent='全部成员';select.append(all);members.items.forEach(p=>{const option=document.createElement('option');option.value=String(p.id);option.textContent=p.displayName;select.append(option);});select.value=adminMemberFilter;}
       const params=new URLSearchParams();if(!sessions){if(adminMemberFilter)params.set('memberId',adminMemberFilter);if($('admin-result').value)params.set('result',$('admin-result').value);for(const [id,key,end] of [['admin-from','from',false],['admin-to','to',true]]){if($(id).value){const time=new Date($(id).value+(end?'T23:59:59.999':'T00:00:00')).getTime();if(!Number.isFinite(time))throw new Error('日期无效');params.set(key,String(time));}}if(append&&adminCursor)params.set('cursor',adminCursor);}
       const result=await request('/api/v1/admin/'+(sessions?'sessions':'login-events')+'?'+params);if(!member||generation!==feedGeneration||currentView!==view)return;
       const list=$('admin-records');if(!append)list.replaceChildren();result.items.forEach(item=>list.append(renderLoginRecord(item,sessions)));adminCursor=result.nextCursor||null;$('admin-more').hidden=!adminCursor;
@@ -294,10 +302,16 @@
   $('revoke-confirm').addEventListener('click',async()=>{if(!revokeTarget)return;const button=$('revoke-confirm'),target=revokeTarget;button.disabled=true;try{await request('/api/v1/admin/sessions/'+target,'DELETE',{});$('revoke-dialog').close();revokeTarget=null;await refreshView();}catch(error){$('revoke-message').textContent=errorText(error);}finally{button.disabled=false;}});
   let searchTimer;$('search').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>refreshView(),300);});
   let usageRefreshBusy=false;
+
   async function refreshUsage(){
-    if(usageRefreshBusy||!member||document.hidden||currentView!=='all')return;
-    usageRefreshBusy=true;
-    try{const result=await request('/api/v1/usage');if(!member)return;drawUsage(result);}catch{document.querySelectorAll('.metric-source').forEach(el=>el.textContent='暂不可用');}finally{usageRefreshBusy=false;}
+    if(usageRefreshBusy||!member||member.role==='guest'||document.hidden||currentView!=='load')return;
+    usageRefreshBusy=true;const epoch=requestEpoch,identity=member.id;
+    try{const result=await request('/api/v1/load');if(epoch!==requestEpoch||member?.id!==identity||currentView!=='load')return;
+      drawUsage(result.usage);
+      for(const [id,key] of [['guest-online','guestOnline'],['guest-limit','guestLimit'],['guest-remaining','remaining'],['member-active','memberActive'],['member-limit','memberLimit']])$(id).textContent=result[key];
+      $('load-status').textContent='API 正常 · 数据库正常 · '+(result.system.metrics==='ok'?'用量快照可用':result.system.metrics==='stale'?'用量快照已过期':'用量快照暂不可用')+' · '+new Date(result.sampledAt).toLocaleTimeString('zh-CN');
+    }catch(error){if(epoch===requestEpoch&&member?.id===identity){$('load-status').textContent='负载读取失败，请重试：'+errorText(error);document.querySelectorAll('.metric-source').forEach(el=>el.textContent='暂不可用');}}
+    finally{usageRefreshBusy=false;}
   }
   function drawUsage(data){
     document.querySelectorAll('.metric-source').forEach(el=>el.textContent=data.status==='ok'?'分析数据':data.status==='stale'?'数据已过期':'暂不可用');document.querySelectorAll('.metric-updated').forEach(el=>el.textContent='数据更新时间：'+(data.collectedAt?formatDate(new Date(data.collectedAt)):'—'));
@@ -312,13 +326,14 @@
   }
   let liveRefreshBusy=false;
   async function refreshLiveContent(){
-    if(liveRefreshBusy||!member||document.hidden||workspace.hidden||['login-events','sessions'].includes(currentView)||dialog.open||document.activeElement?.closest?.('.feed-panel')||$('member-form').contains(document.activeElement))return;
+    if(liveRefreshBusy||!member||document.hidden||workspace.hidden||['load','login-events','sessions'].includes(currentView)||dialog.open||document.activeElement?.closest?.('.feed-panel')||$('member-form').contains(document.activeElement))return;
     liveRefreshBusy=true;
     try{await refreshView();await refreshAnnouncements();if(selectedPost&&$('post-dialog').open&&!$('reply-text').value.trim())await refreshReplies();}
     finally{liveRefreshBusy=false;}
   }
   setInterval(()=>{refreshLiveContent();},20000);
-  setInterval(()=>{refreshUsage();},30000);
+  setInterval(()=>{refreshUsage();},5000);
+  setInterval(()=>{renewGuest();},60000);
   // V0.3 navigation controller
   let routeGeneration=0,routing=false,restoringList=false,postOriginElement=null,knownPost=null,feedbackTimer=null;
   function showFeedback(message,kind='success'){$('feedback-toast').textContent=message;$('feedback-toast').dataset.kind=kind;clearTimeout(feedbackTimer);feedbackTimer=setTimeout(()=>{$('feedback-toast').textContent='';},4500);}
@@ -370,7 +385,7 @@
     }
     workspace.hidden=false;welcome.hidden=true;
     const view=route.kind==='view'?route.view:route.kind==='post'?(history.state?.postOrigin?currentView:'discussions'):'all';
-    if(['login-events','sessions'].includes(view)&&member.role!=='admin'){showPublicPage('missing');return;}
+    if(['login-events','sessions'].includes(view)&&member.role!=='admin'||member.role==='guest'&&['mine','saved','members','profile','load'].includes(view)){showPublicPage('missing');return;}
     const saved=route.kind==='view'&&history.state?.community;
     routing=true;restoringList=!!saved&&saved.identity===member.id;
     setView(view);
@@ -388,7 +403,7 @@
       if(generation!==routeGeneration||member?.id!==identity)return;
       selectedPost={...result,authorName:result.authorName||(knownPost?.id===result.id?knownPost.authorName:result.authorId===identity?member.displayName:'成员'),replies:[]};knownPost=null;replyCursor=null;
       $('post-detail-title').textContent=result.title;$('post-detail-meta').textContent=selectedPost.authorName+' · '+formatDate(new Date(result.createdAt));$('post-detail-text').textContent=result.body||'这篇帖子还没有正文。';
-      document.title=result.title+' · 躺平万岁';$('reply-form').reset();$('reply-form').querySelector('[type=submit]').disabled=false;$('reply-form').hidden=false;document.querySelector('.replies-section').hidden=false;renderPostActions();await refreshReplies();
+      document.title=result.title+' · 躺平万岁';$('reply-form').reset();$('reply-form').querySelector('[type=submit]').disabled=false;$('reply-form').hidden=member?.role==='guest';document.querySelector('.replies-section').hidden=false;renderPostActions();await refreshReplies();
     }catch(error){
       if(generation!==routeGeneration||member?.id!==identity)return;
       $('post-detail-title').textContent=error.status===404?'帖子不存在或已删除':error.status===403?'暂时无法访问这篇帖子':'帖子加载失败';
@@ -409,6 +424,50 @@
   window.addEventListener('hashchange',applyCurrentRoute);
   window.addEventListener('scroll',()=>{const saved=history.state?.community;if(saved&&member&&saved.identity===member.id&&parseRoute(location.hash).kind==='view')history.replaceState({community:{...saved,scroll:window.scrollY}},'',location.href);},{passive:true});
   window.addEventListener('beforeunload',event=>{if(dialog.open&&isDraftChanged(draftInitial,$('content-name').value,$('content-text').value)){event.preventDefault();event.returnValue='';}});
+  function applyIdentityUI(){
+    const guest=member?.role==='guest';
+    document.querySelectorAll('[data-member-only]').forEach(button=>button.hidden=guest);
+    for(const id of ['add-content','empty-add','profile-home','load-nav'])$(id).hidden=guest;
+    $('guest-member-login').hidden=!guest;
+    document.querySelector('.mode-label').textContent=guest?'游客 · 只读':'正式成员';
+    $('forum-notice').textContent=guest?'游客只读访问：可以搜索和浏览公开内容，登录后可参与交流。':'成员可以参与交流；新帖子和公告默认游客可读。';
+  }
+  function revealLogin(scroll=true){
+    card.classList.remove('login-pop');void card.offsetWidth;card.classList.add('revealed','login-pop');
+    if(scroll)$('login').scrollIntoView({behavior:document.documentElement.classList.contains('motion-off')?'instant':'smooth'});
+  }
+  async function withGuestLock(callback){
+    if(navigator.locks?.request)return navigator.locks.request('forum-guest-access',{mode:'exclusive'},callback);
+    if(!window.indexedDB)throw new Error('浏览器无法协调游客会话，请启用站点存储后重试。');
+    const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('forum-guest-lock',1);r.onupgradeneeded=()=>r.result.createObjectStore('locks');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(new Error('游客会话协调失败，请检查站点存储权限。'));});
+    const owner=crypto.randomUUID(),acquire=()=>new Promise((resolve,reject)=>{const tx=db.transaction('locks','readwrite'),store=tx.objectStore('locks'),r=store.get('access');let held=false;r.onsuccess=()=>{if(!r.result||r.result.until<=Date.now()){store.put({owner,until:Date.now()+90000},'access');held=true;}};tx.oncomplete=()=>resolve(held);tx.onerror=()=>reject(tx.error);});
+    let acquired=false;try{for(let attempt=0;attempt<20&&!acquired;attempt++){acquired=await acquire();if(!acquired)await new Promise(resolve=>setTimeout(resolve,250));}if(!acquired)throw new Error('另一个页面正在处理游客会话，请稍后重试。');return await callback();}
+    finally{if(acquired)await new Promise(resolve=>{const tx=db.transaction('locks','readwrite'),store=tx.objectStore('locks'),r=store.get('access');r.onsuccess=()=>{if(r.result?.owner===owner)store.delete('access');};tx.oncomplete=resolve;tx.onerror=resolve;});db.close();}
+  }
+  function broadcastGuest(action,version){try{localStorage.setItem('forum-guest-event',JSON.stringify({action,version,time:Date.now()}));}catch{}}
+  function markGuestHeartbeat(identity){try{localStorage.setItem('forum-guest-heartbeat',JSON.stringify({id:identity.id,version:identity.leaseVersion,time:Date.now()}));}catch{}}
+  async function renewGuest(){
+    if(!guestLease||document.hidden)return;const lease=guestLease;
+    try{await withGuestLock(async()=>{
+      if(guestLease!==lease)return;let last;try{last=JSON.parse(localStorage.getItem('forum-guest-heartbeat')||'null');}catch{}
+      if(last?.id===lease.id&&last?.version===lease.leaseVersion&&Date.now()-last.time<55000)return;
+      await request('/api/v1/guest/heartbeat','POST',{leaseVersion:lease.leaseVersion});if(guestLease===lease)markGuestHeartbeat(lease);
+    });}catch(error){if(error.code==='GUEST_SESSION_EXPIRED'){guestLease=null;if(member?.role==='guest')leaveForum();$('guest-message').textContent='游客访问已结束，请重新进入。';}else if(error.code!=='REQUEST_CANCELLED'){$('forum-notice').textContent='游客心跳未能确认；名额可能在超时后释放。'+errorText(error);}}
+  }
+  $('member-login').addEventListener('click',()=>revealLogin());
+  $('guest-enter').addEventListener('click',async()=>{const button=$('guest-enter');if(button.disabled)return;button.disabled=true;$('guest-message').dataset.state='loading';$('guest-message').textContent='正在进入…';try{const result=await withGuestLock(async()=>{await request('/api/v1/guest/bootstrap','POST',{});return request('/api/v1/guest/enter','POST',{});});enterForum(result.member);if(result.member.role==='guest')markGuestHeartbeat(result.member);$('guest-message').textContent='';}catch(error){$('guest-message').dataset.state='error';$('guest-message').textContent=errorText(error);}finally{button.disabled=false;}});
+  $('guest-member-login').addEventListener('click',()=>{const lease=guestLease;leaveForum();guestLease=lease;history.replaceState(null,'','#login');revealLogin();});
+  $('workspace-home').addEventListener('click',()=>{if(member?.role==='guest'){const lease=guestLease;leaveForum();guestLease=lease;history.replaceState(null,'','#intro');applyCurrentRoute();}else{history.pushState(null,'','#/view/all');applyCurrentRoute();}});
+  $('load-refresh').addEventListener('click',async()=>{const button=$('load-refresh');button.disabled=true;try{await refreshUsage();}finally{button.disabled=false;}});
+  function handleGuestEvent(event){
+    if(event.key!=='forum-guest-event'||!event.newValue)return;
+    try{const data=JSON.parse(event.newValue);
+      if(guestLease?.leaseVersion!==data.version)return;
+      if(data.action==='member'){leaveForum();sessionRestoreNeeded=true;restoreSession();}
+      else if(data.action==='leave'){guestLease=null;if(member?.role==='guest'){leaveForum();$('guest-message').textContent='另一个页面已退出游客访问。';}}
+    }catch{}
+  }
+  window.addEventListener('storage',handleGuestEvent);
   let restoringSession=false,sessionRestoreNeeded=true;
   async function restoreSession(){
     if(restoringSession||!sessionRestoreNeeded||member||loginStage!=='email')return;
@@ -430,6 +489,6 @@
   }
   $('session-retry').addEventListener('click',()=>restoreSession());
   render();applyCurrentRoute();restoreSession();
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden){restoreSession();refreshUsage();refreshLiveContent();}});
-  window.addEventListener('online',()=>{restoreSession();refreshUsage();refreshLiveContent();});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden){restoreSession();refreshUsage();refreshLiveContent();renewGuest();}});
+  window.addEventListener('online',()=>{restoreSession();refreshUsage();refreshLiveContent();renewGuest();});
 })();
