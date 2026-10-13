@@ -61,7 +61,7 @@
   let member=null,guestLease=null,loginStage='email',factorId=null,apiQueue=Promise.resolve(),feedGeneration=0,nextCursor=null,replyCursor=null;
   let requestEpoch=0;
   const activeRequests=new Set();
-  function invalidateRequests(){requestEpoch++;for(const controller of activeRequests)controller.abort();activeRequests.clear();}
+  function invalidateRequests(){requestEpoch++;apiQueue=Promise.resolve();for(const controller of activeRequests)controller.abort();activeRequests.clear();}
   function requestError(message,code,status){return Object.assign(new Error(message),{code,status});}
   async function request(path,method='GET',body){
     const epoch=requestEpoch,cancelled=()=>requestError('登录状态已变化，旧操作已取消。','REQUEST_CANCELLED');
@@ -455,7 +455,7 @@
     });}catch(error){if(error.code==='GUEST_SESSION_EXPIRED'){guestLease=null;if(member?.role==='guest')leaveForum();$('guest-message').textContent='游客访问已结束，请重新进入。';}else if(error.code!=='REQUEST_CANCELLED'){$('forum-notice').textContent='游客心跳未能确认；名额可能在超时后释放。'+errorText(error);}}
   }
   $('member-login').addEventListener('click',()=>revealLogin());
-  $('guest-enter').addEventListener('click',async()=>{const button=$('guest-enter');if(button.disabled)return;button.disabled=true;$('guest-message').dataset.state='loading';$('guest-message').textContent='正在进入…';try{const result=await withGuestLock(async()=>{await request('/api/v1/guest/bootstrap','POST',{});return request('/api/v1/guest/enter','POST',{});});enterForum(result.member);if(result.member.role==='guest')markGuestHeartbeat(result.member);$('guest-message').textContent='';}catch(error){$('guest-message').dataset.state='error';$('guest-message').textContent=errorText(error);}finally{button.disabled=false;}});
+  $('guest-enter').addEventListener('click',async()=>{const button=$('guest-enter');if(button.disabled)return;sessionRestoreNeeded=false;invalidateRequests();button.disabled=true;$('login-message').textContent='';$('session-retry').hidden=true;$('guest-message').dataset.state='loading';$('guest-message').textContent='正在进入…';try{const result=await withGuestLock(()=>request('/api/v1/guest/enter','POST',{}));enterForum(result.member);if(result.member.role==='guest')markGuestHeartbeat(result.member);$('guest-message').textContent='';}catch(error){$('guest-message').dataset.state='error';$('guest-message').textContent=errorText(error);}finally{button.disabled=false;}});
   $('guest-member-login').addEventListener('click',()=>{const lease=guestLease;leaveForum();guestLease=lease;history.replaceState(null,'','#login');revealLogin();});
   $('workspace-home').addEventListener('click',()=>{if(member?.role==='guest'){const lease=guestLease;leaveForum();guestLease=lease;history.replaceState(null,'','#intro');applyCurrentRoute();}else{history.pushState(null,'','#/view/all');applyCurrentRoute();}});
   $('load-refresh').addEventListener('click',async()=>{const button=$('load-refresh');button.disabled=true;try{await refreshUsage();}finally{button.disabled=false;}});
@@ -471,12 +471,14 @@
   let restoringSession=false,sessionRestoreNeeded=true;
   async function restoreSession(){
     if(restoringSession||!sessionRestoreNeeded||member||loginStage!=='email')return;
+    const epoch=requestEpoch;
     restoringSession=true;
     const sendDisabled=$('send-code').disabled,enterDisabled=$('enter-space').disabled;
     $('send-code').disabled=true;$('enter-space').disabled=true;
     $('session-retry').hidden=true;$('login-message').textContent='正在恢复本设备的登录…';
     try{
       for(let attempt=0;attempt<3;attempt++){
+        if(epoch!==requestEpoch||!sessionRestoreNeeded)return;
         try{const result=await request('/api/v1/session');sessionRestoreNeeded=false;enterForum(result.member);return;}
         catch(error){
           if(error.code==='REQUEST_CANCELLED')return;
