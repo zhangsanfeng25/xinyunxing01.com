@@ -89,7 +89,9 @@
   let otpResendUntil=0,otpResendTimer=null;
   function updateOtpCountdown(){
     const seconds=Math.max(0,Math.ceil((otpResendUntil-Date.now())/1000));
-    $('send-code-interval').textContent=seconds?`${seconds} 秒后重发`:'间隔 60 秒';
+    $('send-code-label').hidden=seconds>0;
+    $('send-code-interval').hidden=seconds===0;
+    $('send-code-interval').textContent=seconds?`${seconds} 秒`:'';
     if(!seconds&&otpResendTimer!==null){clearInterval(otpResendTimer);otpResendTimer=null;$('send-code').disabled=false;}
   }
   updateOtpCountdown();
@@ -263,7 +265,7 @@
       if(currentView==='announcements'){await refreshAnnouncements(true,generation);return;}
       const params=new URLSearchParams({sort:{latest:'newest',replies:'replies',saved:'bookmarks'}[sort],filter:currentView==='mine'?'mine':currentView==='saved'?'bookmarked':'all',q:$('search').value.trim()});if(append&&nextCursor)params.set('cursor',nextCursor);
       $('result-status').textContent='正在加载…';const result=await request('/api/v1/posts?'+params);if(generation!==feedGeneration||!member)return;
-      if(!append)items.length=0;items.push(...result.items);nextCursor=result.nextCursor;render();persistListState();$('forum-notice').textContent=member.role==='guest'?'游客只读访问：可以搜索和浏览公开内容，登录后可参与交流。':'成员可以参与交流；新帖子和公告默认游客可读。';
+      if(!append)items.length=0;items.push(...result.items);nextCursor=result.nextCursor;render();persistListState();$('forum-notice').textContent='';
     }catch(error){if(generation===feedGeneration){$('result-status').textContent=errorText(error);$('empty-state').hidden=true;$('view-retry').hidden=!member;}}
   }
   async function refreshReplies(append=false){const post=selectedPost;if(!post)return;$('reply-retry').hidden=true;$('reply-message').dataset.state='loading';$('reply-message').textContent='正在加载回复…';try{const params=new URLSearchParams();if(append&&replyCursor)params.set('cursor',replyCursor);const result=await request('/api/v1/posts/'+post.id+'/replies?'+params);if(!member||selectedPost!==post)return;if(!append)post.replies=[];post.replies.push(...result.items);replyCursor=result.nextCursor;renderReplies();$('reply-message').textContent='';}catch(error){if(member&&selectedPost===post){$('reply-message').dataset.state='error';$('reply-message').textContent=errorText(error);$('reply-retry').hidden=false;}}}
@@ -378,7 +380,7 @@
     if(route.kind==='public'||route.kind==='missing'){showPublicPage(route.kind==='missing'?'missing':route.page);return;}
     if(!member){
       workspace.hidden=true;welcome.hidden=false;
-      $('login-context').textContent=route.kind==='post'?'登录后继续查看这篇帖子。':route.kind==='view'?'请先验证身份，再进入成员空间。':'使用已获邀请的邮箱，继续我们的交流。';
+      $('login-context').textContent=route.kind==='post'?'登录后继续查看这篇帖子。':route.kind==='view'?'请先验证身份，再进入成员空间。':'';
       document.title='躺平万岁';
       if(route.kind!=='landing')requestAnimationFrame(()=>{if(generation===routeGeneration&&!member)$('login').scrollIntoView({behavior:'instant'});});
       return;
@@ -430,7 +432,7 @@
     for(const id of ['add-content','empty-add','profile-home','load-nav'])$(id).hidden=guest;
     $('guest-member-login').hidden=!guest;
     document.querySelector('.mode-label').textContent=guest?'游客 · 只读':'正式成员';
-    $('forum-notice').textContent=guest?'游客只读访问：可以搜索和浏览公开内容，登录后可参与交流。':'成员可以参与交流；新帖子和公告默认游客可读。';
+    $('forum-notice').textContent='';
   }
   function revealLogin(scroll=true){
     card.classList.remove('login-pop');void card.offsetWidth;card.classList.add('revealed','login-pop');
