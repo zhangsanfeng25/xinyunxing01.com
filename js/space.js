@@ -57,7 +57,7 @@
     let loginCardInView=false;
     const observer = new IntersectionObserver(entries => {
       for(const entry of entries){
-        if(!entry.isIntersecting){loginCardInView=false;continue;}
+        if(!entry.isIntersecting){loginCardInView=false;card.classList.remove('revealed');continue;}
         if(entry.intersectionRatio>=.12&&!loginCardInView){loginCardInView=true;revealLogin(false);}
       }
     }, {threshold: [0,.12]}); observer.observe(card);
@@ -465,7 +465,7 @@
     $('forum-notice').textContent='';
   }
   function revealLogin(scroll=true){
-    card.classList.remove('login-pop');void card.offsetWidth;card.classList.add('revealed','login-pop');
+    card.classList.add('revealed');
     if(scroll)$('login').scrollIntoView({behavior:document.documentElement.classList.contains('motion-off')?'instant':'smooth'});
   }
   async function withGuestLock(callback){
