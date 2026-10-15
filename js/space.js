@@ -164,10 +164,11 @@
   $('profile-toggle').addEventListener('click',()=>{const open=$('profile-menu').hidden;$('profile-menu').hidden=!open;$('profile-toggle').setAttribute('aria-expanded',String(open));});
   document.addEventListener('click',event=>{if(!event.target.closest('.profile-area')){$('profile-menu').hidden=true;$('profile-toggle').setAttribute('aria-expanded','false');}});
   function clearItems(){items.length=0;selectedPost=null;$('search').value='';render();}
-  function leaveForum(){document.querySelectorAll('#member-add-dialog,#members-dialog,#announcements-dialog').forEach(el=>{if(el.open)el.close();});['all-member-list','all-member-message','announcement-manage-list','announcement-manage-message','members-message'].forEach(id=>$(id).replaceChildren());invalidateRequests();routeGeneration++;knownPost=null;postOriginElement=null;history.replaceState(null,'',location.href);finishDelete(false);document.querySelectorAll('.admin-profile-action').forEach(button=>button.hidden=true);member=null;guestLease=null;composer=null;adminMemberFilter='';adminCursor=null;revokeTarget=null;if($('revoke-dialog').open)$('revoke-dialog').close();$('admin-filter').reset();$('admin-nav').hidden=true;$('member-form').reset();$('member-form').hidden=true;feedGeneration++;if(dialog.open)dialog.close();if($('post-dialog').open)$('post-dialog').close();$('content-form').reset();$('reply-form').reset();clearItems();['admin-records','admin-member','admin-message','admin-note','member-list','member-message','post-manage','announcement-list','post-detail-title','post-detail-meta','post-detail-text','reply-list'].forEach(id=>$(id).replaceChildren());drawUsage({status:'unavailable'});closeSidebar();$('profile-menu').hidden=true;$('profile-toggle').setAttribute('aria-expanded','false');workspace.hidden=true;welcome.hidden=false;resetLogin();window.scrollTo({top:0,behavior:'instant'});document.title='躺平万岁';applyCurrentRoute();}
-  function enterForum(identity){const priorGuest=guestLease;if(identity.role!=='guest'&&priorGuest)broadcastGuest('member',priorGuest.leaseVersion);invalidateRequests();member=identity;guestLease=identity.role==='guest'?identity:null;applyIdentityUI();$('login-form').reset();resetLogin();$('login-message').textContent='';$('profile-name').textContent=identity.displayName;document.querySelector('#profile-toggle .avatar').textContent=[...identity.displayName][0];$('identity-name').textContent=identity.displayName;$('identity-role').textContent=identity.role==='admin'?'超级管理员':identity.role==='guest'?'游客 · 只读':'成员';$('identity-avatar').textContent=[...identity.displayName][0];welcome.hidden=true;workspace.hidden=false;applyCurrentRoute();window.scrollTo({top:0,behavior:'instant'});}
+  function leaveForum(){r2UI.reset();document.querySelectorAll('#member-add-dialog,#members-dialog,#announcements-dialog').forEach(el=>{if(el.open)el.close();});['all-member-list','all-member-message','announcement-manage-list','announcement-manage-message','members-message'].forEach(id=>$(id).replaceChildren());invalidateRequests();routeGeneration++;knownPost=null;postOriginElement=null;history.replaceState(null,'',location.href);finishDelete(false);document.querySelectorAll('.admin-profile-action').forEach(button=>button.hidden=true);member=null;guestLease=null;composer=null;adminMemberFilter='';adminCursor=null;revokeTarget=null;if($('revoke-dialog').open)$('revoke-dialog').close();$('admin-filter').reset();$('admin-nav').hidden=true;$('member-form').reset();$('member-form').hidden=true;feedGeneration++;if(dialog.open)dialog.close();if($('post-dialog').open)$('post-dialog').close();$('content-form').reset();$('reply-form').reset();clearItems();['admin-records','admin-member','admin-message','admin-note','member-list','member-message','post-manage','announcement-list','post-detail-title','post-detail-meta','post-detail-text','reply-list'].forEach(id=>$(id).replaceChildren());drawUsage({status:'unavailable'});closeSidebar();$('profile-menu').hidden=true;$('profile-toggle').setAttribute('aria-expanded','false');workspace.hidden=true;welcome.hidden=false;resetLogin();window.scrollTo({top:0,behavior:'instant'});document.title='躺平万岁';applyCurrentRoute();}
+  function enterForum(identity){const priorGuest=guestLease;if(identity.role!=='guest'&&priorGuest)broadcastGuest('member',priorGuest.leaseVersion);invalidateRequests();member=identity;r2UI.reset();guestLease=identity.role==='guest'?identity:null;applyIdentityUI();$('login-form').reset();resetLogin();$('login-message').textContent='';$('profile-name').textContent=identity.displayName;document.querySelector('#profile-toggle .avatar').textContent=[...identity.displayName][0];$('identity-name').textContent=identity.displayName;$('identity-role').textContent=identity.role==='admin'?'超级管理员':identity.role==='guest'?'游客 · 只读':'成员';$('identity-avatar').textContent=[...identity.displayName][0];welcome.hidden=true;workspace.hidden=false;applyCurrentRoute();window.scrollTo({top:0,behavior:'instant'});}
   $('logout').addEventListener('click',async()=>{$('logout').disabled=true;try{await withGuestLock(()=>request(member?.role==='guest'?'/api/v1/guest/leave':'/auth/logout','POST',member?.role==='guest'?{leaseVersion:member.leaseVersion}:{}));if(member?.role==='guest')broadcastGuest('leave',member.leaseVersion);leaveForum();history.replaceState(null,'','#intro');applyCurrentRoute();}catch(error){$('forum-notice').textContent=errorText(error);}finally{$('logout').disabled=false;}});
   const mayEdit=item=>member&&member.role!=='guest'&&(member.role==='admin'||item.authorId===member.id);
+  const r2UI=window.createR2UI({request,getMember:()=>member,getEpoch:()=>requestEpoch,getView:()=>currentView});
   let draftInitial={title:'',body:''},discardAction=null;
   function openComposer(table=currentView==='announcements'?'announcements':'posts',item=null){
     if(!member||member.role==='guest')return;
@@ -179,9 +180,10 @@
     $('content-form').querySelector('[type="submit"]').textContent=item?'保存修改':'发布';
     if(item){$('content-name').value=item.title||'';$('content-text').value=item.body||'';}
     draftInitial={title:$('content-name').value,body:$('content-text').value};
+    r2UI.openComposer(composer);
     dialog.showModal();
   }
-  function closeComposer(){if(isDraftChanged(draftInitial,$('content-name').value,$('content-text').value)){discardAction=()=>dialog.close();$('discard-dialog').showModal();}else dialog.close();}
+  function closeComposer(){if(isDraftChanged(draftInitial,$('content-name').value,$('content-text').value)||r2UI.hasImageChanges()){discardAction=()=>dialog.close();$('discard-dialog').showModal();}else dialog.close();}
   $('add-content').addEventListener('click',()=>openComposer());$('empty-add').addEventListener('click',()=>openComposer());$('close-dialog').addEventListener('click',closeComposer);
   dialog.addEventListener('cancel',event=>{event.preventDefault();closeComposer();});
   $('discard-cancel').addEventListener('click',()=>{discardAction=null;$('discard-dialog').close();});
@@ -189,7 +191,7 @@
   $('discard-confirm').addEventListener('click',()=>{const action=discardAction;discardAction=null;$('discard-dialog').close();action?.();});
   $('content-form').addEventListener('submit',async event=>{
     event.preventDefault();if(!composer||!member)return;const button=event.submitter||$('content-form').querySelector('[type="submit"]');if(button.disabled)return;const epoch=requestEpoch,composition=composer,{table,item}=composition;button.disabled=true;
-    try{const data={body:$('content-text').value.trim(),...(table==='replies'?{}:{title:$('content-name').value.trim()}),...(item?{version:item.version}:{})};
+    try{r2UI.assertReady();const data={...(table==='posts'&&r2UI.imageIds()!==undefined?{imageIds:r2UI.imageIds()}:{}),body:$('content-text').value.trim(),...(table==='replies'?{}:{title:$('content-name').value.trim()}),...(item?{version:item.version}:{})};
       const result=await request('/api/v1/'+table+(item?'/'+item.id:''),item?'PATCH':'POST',data);
       if(!member||composer!==composition)return;dialog.close();$('content-form').reset();
       if(table==='replies')await refreshReplies();
@@ -337,14 +339,14 @@
     if(usageRefreshBusy||!member||member.role==='guest'||document.hidden||currentView!=='load')return;
     usageRefreshBusy=true;const epoch=requestEpoch,identity=member.id;
     try{const result=await request('/api/v1/load');if(epoch!==requestEpoch||member?.id!==identity||currentView!=='load')return;
-      drawUsage(result.usage);
+      if(result.usage)drawUsage(result.usage);
       for(const [id,key] of [['guest-online','guestOnline'],['guest-limit','guestLimit'],['guest-remaining','remaining'],['member-active','memberActive'],['member-limit','memberLimit']])$(id).textContent=result[key];
-      $('load-status').textContent='API 正常 · 数据库正常 · '+(result.system.metrics==='ok'?'用量快照可用':result.system.metrics==='stale'?'用量快照已过期':'用量快照暂不可用')+' · '+new Date(result.sampledAt).toLocaleTimeString('zh-CN');
-    }catch(error){if(epoch===requestEpoch&&member?.id===identity){$('load-status').textContent='负载读取失败，请重试：'+errorText(error);document.querySelectorAll('.metric-source').forEach(el=>el.textContent='暂不可用');}}
+      $('load-status').textContent='API 正常 · 数据库正常 · '+(result.system?.metrics==='ok'?'用量快照可用':result.system?.metrics==='stale'?'用量快照已过期':'用量快照暂不可用')+' · '+new Date(result.sampledAt).toLocaleTimeString('zh-CN');
+    }catch(error){if(epoch===requestEpoch&&member?.id===identity){$('load-status').textContent='负载读取失败，请重试：'+errorText(error);document.querySelectorAll('.workers .metric-source,.d1 .metric-source').forEach(el=>el.textContent='暂不可用');}}
     finally{usageRefreshBusy=false;}
   }
   function drawUsage(data){
-    document.querySelectorAll('.metric-source').forEach(el=>el.textContent=data.status==='ok'?'分析数据':data.status==='stale'?'数据已过期':'暂不可用');document.querySelectorAll('.metric-updated').forEach(el=>el.textContent='数据更新时间：'+(data.collectedAt?formatDate(new Date(data.collectedAt)):'—'));
+    document.querySelectorAll('.workers .metric-source,.d1 .metric-source').forEach(el=>el.textContent=data.status==='ok'?'分析数据':data.status==='stale'?'数据已过期':'暂不可用');document.querySelectorAll('.workers .metric-updated,.d1 .metric-updated').forEach(el=>el.textContent='数据更新时间：'+(data.collectedAt?formatDate(new Date(data.collectedAt)):'—'));
     const configs=[['requests','.workers .metric-value','.workers .meter','.workers .trend-empty'],['rowsRead','.d1-grid > div:first-child .metric-value','.d1-grid > div:first-child .meter','.d1-grid > div:first-child .trend-empty'],['rowsWritten','.d1-grid > div:last-child .metric-value','.d1-grid > div:last-child .meter','.d1-grid > div:last-child .trend-empty'],['databaseBytes','.storage-value','.storage-row .meter',null]];
     configs.forEach(([key,valueSelector,meterSelector,trendSelector])=>{
       const value=data.values?.[key],limit=data.limits?.[key],valid=typeof value==='number'&&Number.isFinite(value),label=valid?(key==='databaseBytes'?(value/1000000).toFixed(1)+' MB':value.toLocaleString('zh-CN')):'—';document.querySelector(valueSelector).textContent=label;
@@ -432,7 +434,7 @@
       const result=await request('/api/v1/posts/'+route.id);
       if(generation!==routeGeneration||member?.id!==identity)return;
       selectedPost={...result,authorName:result.authorName||(knownPost?.id===result.id?knownPost.authorName:result.authorId===identity?member.displayName:'成员'),replies:[]};knownPost=null;replyCursor=null;
-      $('post-detail-title').textContent=result.title;$('post-detail-meta').textContent=selectedPost.authorName+' · '+formatDate(new Date(result.createdAt));$('post-detail-text').textContent=result.body||'这篇帖子还没有正文。';
+      $('post-detail-title').textContent=result.title;$('post-detail-meta').textContent=selectedPost.authorName+' · '+formatDate(new Date(result.createdAt));$('post-detail-text').textContent=result.body||'这篇帖子还没有正文。';r2UI.renderPost(result);
       document.title=result.title+' · 躺平万岁';$('reply-form').reset();$('reply-form').querySelector('[type=submit]').disabled=false;$('reply-form').hidden=member?.role==='guest';document.querySelector('.replies-section').hidden=false;renderPostActions();await refreshReplies();
     }catch(error){
       if(generation!==routeGeneration||member?.id!==identity)return;
@@ -453,7 +455,7 @@
   document.querySelector('.skip-link').addEventListener('click',event=>{event.preventDefault();const target=workspace.hidden?(welcome.hidden?$('public-page'):$('login')):$('main-content');target.setAttribute('tabindex','-1');target.focus();target.scrollIntoView({behavior:'instant',block:'start'});});
   window.addEventListener('hashchange',applyCurrentRoute);
   window.addEventListener('scroll',()=>{const saved=history.state?.community;if(saved&&member&&saved.identity===member.id&&parseRoute(location.hash).kind==='view')history.replaceState({community:{...saved,scroll:window.scrollY}},'',location.href);},{passive:true});
-  window.addEventListener('beforeunload',event=>{if(dialog.open&&isDraftChanged(draftInitial,$('content-name').value,$('content-text').value)){event.preventDefault();event.returnValue='';}});
+  window.addEventListener('beforeunload',event=>{if(dialog.open&&(isDraftChanged(draftInitial,$('content-name').value,$('content-text').value)||r2UI.hasImageChanges())){event.preventDefault();event.returnValue='';}});
   function applyIdentityUI(){
     const guest=member?.role==='guest';document.querySelector('[data-side="announcements"]').hidden=member?.role!=='admin';
     document.querySelectorAll('[data-member-only]').forEach(button=>button.hidden=guest);
@@ -488,7 +490,6 @@
   $('guest-enter').addEventListener('click',async()=>{const button=$('guest-enter');if(button.disabled)return;sessionRestoreNeeded=false;invalidateRequests();button.disabled=true;$('login-message').textContent='';$('session-retry').hidden=true;$('guest-message').dataset.state='loading';$('guest-message').textContent='正在进入…';try{const result=await withGuestLock(()=>request('/api/v1/guest/enter','POST',{}));enterForum(result.member);if(result.member.role==='guest')markGuestHeartbeat(result.member);$('guest-message').textContent='';}catch(error){$('guest-message').dataset.state='error';$('guest-message').textContent=errorText(error);}finally{button.disabled=false;}});
   $('guest-member-login').addEventListener('click',()=>{const lease=guestLease;leaveForum();guestLease=lease;history.replaceState(null,'','#login');revealLogin();});
   $('workspace-home').addEventListener('click',()=>{if(member?.role==='guest'){const lease=guestLease;leaveForum();guestLease=lease;history.replaceState(null,'','#intro');applyCurrentRoute();}else{history.pushState(null,'','#/view/all');applyCurrentRoute();}});
-  $('load-refresh').addEventListener('click',async()=>{const button=$('load-refresh');button.disabled=true;try{await refreshUsage();}finally{button.disabled=false;}});
   function handleGuestEvent(event){
     if(event.key!=='forum-guest-event'||!event.newValue)return;
     try{const data=JSON.parse(event.newValue);
