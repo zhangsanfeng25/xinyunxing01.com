@@ -49,3 +49,17 @@ SOFTWARE.
 Other referenced project sources (backend dependencies are not included in this frontend archive):
 Supabase: https://github.com/supabase/supabase
 jose: https://github.com/panva/jose
+
+
+Website directory marks (2026-10-17)
+Official-origin icons identify the listed services; trademarks belong to their respective owners. No affiliation or endorsement is implied. Claude uses the official Anthropic corporate favicon.
+ChatGPT | assets/website-logos/chatgpt.png | Source: https://chatgpt.com/ (Chrome observed original embedded PNG in page favicon)
+Claude | assets/website-logos/claude.png | Source: https://cdn.prod.website-files.com/67ce28cfec624e2b733f8a52/681d52619fec35886a7f1a70_favicon.png
+Gemini | assets/website-logos/gemini.png | Source: https://www.gstatic.com/lamda/images/gemini_sparkle_4g_512_lt_f94943af3be039176192d.png
+DeepSeek | assets/website-logos/deepseek.ico | Source: https://www.deepseek.com/favicon.ico
+Kimi | assets/website-logos/kimi.ico | Source: https://www.kimi.com/favicon.ico
+豆包 | assets/website-logos/doubao.png | Source: https://lf-flow-web-cdn.doubao.com/obj/flow-doubao/doubao/chat/favicon-doubao.png
+千问 | assets/website-logos/qianwen.png | Source: https://img.alicdn.com/imgextra/i2/O1CN01taBbMS1CfyJoOt0lB_!!6000000000109-2-tps-80-80.png
+Perplexity | assets/website-logos/perplexity.ico | Source: https://www.perplexity.ai/favicon.ico
+Grok | assets/website-logos/grok.ico | Source: https://grok.com/images/favicon.ico
+Microsoft Copilot | assets/website-logos/copilot.ico | Source: https://copilot.microsoft.com/static/cmc/favicon.ico
