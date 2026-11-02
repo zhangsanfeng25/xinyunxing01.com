@@ -70,3 +70,7 @@ html:has(dialog[open]){overflow:hidden}.detail-drawer{scrollbar-width:thin}@medi
 @media(max-width:760px){.catalog-toolbar>.ui-filter{display:flex!important;flex:1 0 calc(50% - 8px);min-width:110px;margin:0}.catalog-toolbar>.ui-filter select{width:100%}}
 
 body[data-role=guest] [data-save],body[data-role=guest] #detail [data-detail-discussion]{display:none!important}
+
+/* Mixed resource rows retain each card's intrinsic height. */
+.home-section .cards-grid{align-items:start}
+.detail-content.website-introduction{display:block}.website-introduction .detail-info{gap:20px}.website-introduction .website-summary{color:var(--fg);line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere;margin:0}.website-introduction .website-heading{display:flex;align-items:center;gap:16px}.website-introduction .website-heading h2{margin:8px 0}.website-introduction .site-logo{flex-shrink:0}
