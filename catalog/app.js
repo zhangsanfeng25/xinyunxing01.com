@@ -69,7 +69,7 @@ function card(item,compact=false){
 }
 function section(title,content,to,compact=false){return `<section class="home-section"><div class="section-heading"><h2>${title}</h2>${to?`<a class="text-link" href="#/${to}">查看全部 ${icon('chevron-right')}</a>`:''}</div>${content}</section>`;}
 function home(){
- if(state.serverHome){const h=state.serverHome,grid=(rows,compact=false)=>rows.length?'<div class="'+(compact?'compact-grid':'cards-grid')+'">'+rows.map(x=>card(x,compact)).join(''):'<div class="quiet-empty">'+empty('暂无资源','添加或浏览资源后，这里会显示相应内容。')+'</div>';return heading('首页',state.serverSettings?.siteDescription||'收集和整理优质的网站、UI 组件与 AI 提示词，提升效率，激发灵感。')+section('最新添加',grid(h.latest))+section('热门浏览',grid(h.popular))+section('精选网站',grid(h.featuredWebsites,true),'websites')+section('精选 UI',grid(h.featuredUI),'ui')+section('精选提示词',grid(h.featuredPrompts),'prompts');}
+ if(state.serverHome){const h=state.serverHome,grid=(rows,compact=false)=>rows.length?'<div class="'+(compact?'compact-grid':'cards-grid')+'">'+rows.map(x=>card(x,compact)).join(''):'<div class="quiet-empty">'+empty('暂无资源','添加或浏览资源后，这里会显示相应内容。')+'</div>';return heading('首页',state.serverSettings?.siteDescription||'收集和整理优质的网站、UI 组件与 AI 提示词，提升效率，激发灵感。')+section('最新添加',grid(h.latest))+section('精选网站',grid(h.featuredWebsites,true),'websites')+section('精选 UI',grid(h.featuredUI),'ui')+section('精选提示词',grid(h.featuredPrompts),'prompts');}
 
  const by=slug=>state.items.find(x=>x.seedKey.endsWith(slug));
  const latest=[by('sliding-tabs'),by('hover-dropdown'),by('drawer-left')].filter(Boolean);
@@ -77,7 +77,6 @@ function home(){
  const ui=['accordion-menu','slider-switch','orbit-loader','animated-submenu','lift-button','sliding-tabs'].map(by).filter(Boolean);
  return heading('首页','收集和整理优质的网站、UI 组件与 AI 提示词，提升效率，激发灵感。')+
  section('最新添加',`<div class="cards-grid latest-grid">${latest.map(x=>card(x)).join('')}</div>`)+
- section('热门浏览',`<div class="quiet-empty">${icon('globe')}<div><strong>还没有浏览记录</strong><p>使用后，这里会展示常用的资源。</p></div></div>`)+
  section('精选网站',`<div class="compact-grid">${featured.map(x=>card(x,true)).join('')}</div>`,'websites')+
  section('精选 UI',`<div class="cards-grid">${ui.map(x=>card(x)).join('')}</div>`,'ui')+
  section('精选提示词',`<div class="prompt-empty"><div>${icon('message-square')}<strong>留给你的灵感与经验</strong><p>还没有提示词，添加后可以在这里整理和收藏。</p></div><a href="#/add/prompt" class="secondary">添加第一条提示词</a></div>`,'prompts');
