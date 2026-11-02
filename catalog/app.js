@@ -69,18 +69,17 @@ function card(item,compact=false){
 }
 function section(title,content,to,compact=false){return `<section class="home-section"><div class="section-heading"><h2>${title}</h2>${to?`<a class="text-link" href="#/${to}">查看全部 ${icon('chevron-right')}</a>`:''}</div>${content}</section>`;}
 function home(){
- if(state.serverHome){const h=state.serverHome,grid=(rows,compact=false)=>rows.length?'<div class="'+(compact?'compact-grid':'cards-grid')+'">'+rows.map(x=>card(x,compact)).join(''):'<div class="quiet-empty">'+empty('暂无资源','添加或浏览资源后，这里会显示相应内容。')+'</div>';return heading('首页',state.serverSettings?.siteDescription||'收集和整理优质的网站、UI 组件与 AI 提示词，提升效率，激发灵感。')+section('最新添加',grid(h.latest))+section('精选网站',grid(h.featuredWebsites,true),'websites')+section('精选 UI',grid(h.featuredUI),'ui')+section('精选提示词',grid(h.featuredPrompts),'prompts');}
-
+ const featuredSection=(title,rows,to,limit,compact=false)=>rows?.length?section(title,'<div class="'+(compact?'compact-grid':'cards-grid')+'">'+rows.slice(0,limit).map(item=>card(item,compact)).join('')+'</div>',to):'';
+ if(state.serverHome){const h=state.serverHome;return heading('首页','')+
+  featuredSection('精选网站',h.featuredWebsites,'websites',6,true)+
+  featuredSection('精选 UI',h.featuredUI,'ui',3)+
+  featuredSection('精选提示词',h.featuredPrompts,'prompts',3);}
  const by=slug=>state.items.find(x=>x.seedKey.endsWith(slug));
- const latest=[by('sliding-tabs'),by('hover-dropdown'),by('drawer-left')].filter(Boolean);
- const featured=[17,18,20,22,24,41].map(n=>by('site-'+String(n).padStart(2,'0'))).filter(Boolean);
- const ui=['accordion-menu','slider-switch','orbit-loader','animated-submenu','lift-button','sliding-tabs'].map(by).filter(Boolean);
- return heading('首页','收集和整理优质的网站、UI 组件与 AI 提示词，提升效率，激发灵感。')+
- section('最新添加',`<div class="cards-grid latest-grid">${latest.map(x=>card(x)).join('')}</div>`)+
- section('精选网站',`<div class="compact-grid">${featured.map(x=>card(x,true)).join('')}</div>`,'websites')+
- section('精选 UI',`<div class="cards-grid">${ui.map(x=>card(x)).join('')}</div>`,'ui')+
- section('精选提示词',`<div class="prompt-empty"><div>${icon('message-square')}<strong>留给你的灵感与经验</strong><p>还没有提示词，添加后可以在这里整理和收藏。</p></div><a href="#/add/prompt" class="secondary">添加第一条提示词</a></div>`,'prompts');
+ const websites=[17,18,20,22,24,41].map(n=>by('site-'+String(n).padStart(2,'0'))).filter(Boolean);
+ const ui=['accordion-menu','slider-switch','orbit-loader'].map(by).filter(Boolean);
+ return heading('首页','')+featuredSection('精选网站',websites,'websites',6,true)+featuredSection('精选 UI',ui,'ui',3)+featuredSection('精选提示词',state.items.filter(x=>x.kind==='prompt'),'prompts',3);
 }
+
 function search(){
  const q=state.query.trim().toLowerCase();if(state.backendMode&&q&&state.serviceSearch?.q!==q)return heading('搜索资源','在网站、UI 组件和提示词中查找。')+'<p role="status">正在搜索完整资源…</p>';if(state.backendMode&&q&&state.serviceSearch?.error)return heading('搜索资源','在网站、UI 组件和提示词中查找。')+empty('搜索暂时不可用',state.serviceSearch.error,'<button class="secondary" data-action="reload">重新载入</button>');const items=state.backendMode&&state.serviceSearch?.q===q?state.serviceSearch.items:q?state.items.filter(x=>[x.title,x.description,...x.tags].join(' ').toLowerCase().includes(q)):[];
  return heading('搜索资源','在网站、UI 组件和提示词中查找。')+`<div class="results-meta"><span>${q?'“'+esc(state.query)+'” · '+items.length+' 个结果':'输入关键词开始搜索'}</span>${q?'<button class="text-button" data-action="clear-filters">清除搜索</button>':''}</div>`+(items.length?`<div class="cards-grid">${items.map(x=>card(x)).join('')}</div>`:empty(q?'没有找到匹配的资源':'你想找点什么？',q?'试试其他关键词。':'使用顶部搜索框查找你收藏的内容。'));
