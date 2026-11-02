@@ -14,16 +14,20 @@
   return {ready:load,destroy(){if(dead)return;dead=true;files=[];root.removeEventListener('change',change);root.removeEventListener('click',click);root.replaceChildren();}};
  }
  function mountUIRuntimeView({previewRoot,toolsRoot,title,requestTicket,onError=()=>{},onStart=()=>{},onFallback=()=>{}}){
-  let dead=false,generation=0,runtime=null,defaultBackground='#f7f8fa';const viewport=document.createElement('div');viewport.className='detail-runtime-viewport';const stage=document.createElement('div');stage.className='detail-runtime-stage';viewport.append(stage);
-  toolsRoot.innerHTML='<div class="runtime-controls"><label>预览宽度<select data-runtime-width><option value="desktop">电脑</option><option value="phone">手机</option></select></label><label>预览背景<select data-runtime-background><option value="default">默认</option><option value="light">浅色</option><option value="dark">深色</option><option value="transparent">透明棋盘格</option></select></label><button type="button" class="secondary" data-runtime-reset>重置预览</button><button type="button" class="secondary" data-runtime-stop>停止预览</button></div><p data-runtime-message role="status"></p>';
-  const message=toolsRoot.querySelector('[data-runtime-message]');
-  function appearance(){const phone=toolsRoot.querySelector('[data-runtime-width]').value==='phone',mode=toolsRoot.querySelector('[data-runtime-background]').value;viewport.style.width=phone?'390px':'100%';viewport.classList.toggle('runtime-checkerboard',mode==='transparent');viewport.style.background=({light:'#f7f8fa',dark:'#10141b',transparent:'transparent'})[mode]??defaultBackground;}
-  function stop(){generation++;runtime?.destroy();runtime=null;stage.replaceChildren();}
-  async function start(){stop();onStart();previewRoot.replaceChildren(viewport);appearance();stage.textContent='正在准备隔离预览…';const current=generation;try{const ticket=await requestTicket();if(dead||generation!==current)return;defaultBackground=ticket.background??defaultBackground;appearance();runtime=window.mountUIRuntime({root:stage,...ticket,title:title+'详情交互预览',onStatus:state=>{if(dead||generation!==current)return;message.textContent=state.status==='running'?'可在预览中体验交互；尺寸与背景切换会保留当前状态。':state.status==='failed'?'交互预览暂不可用：'+state.error:'正在启动组件…';if(state.status==='failed'){stage.textContent='交互预览暂不可用';onFallback();}}});}catch(error){if(dead||generation!==current)return;stage.textContent='交互预览暂不可用';message.textContent=error.message;onFallback();onError(error);}}
-  function change(event){if(event.target.matches('[data-runtime-width],[data-runtime-background]'))appearance();}
-  function click(event){if(event.target.closest('[data-runtime-reset]'))start();if(event.target.closest('[data-runtime-stop]')){stop();message.textContent='组件预览已停止。';}}
-  toolsRoot.addEventListener('change',change);toolsRoot.addEventListener('click',click);start();
-  return {destroy(){if(dead)return;dead=true;stop();toolsRoot.removeEventListener('change',change);toolsRoot.removeEventListener('click',click);toolsRoot.replaceChildren();viewport.remove();}};
+  let dead=false,generation=0,runtime=null,abort=null;
+  const viewport=document.createElement('div');viewport.className='detail-runtime-viewport';viewport.style.width='100%';
+  const stage=document.createElement('div');stage.className='detail-runtime-stage';viewport.append(stage);
+  toolsRoot.innerHTML='<p data-runtime-message role="status"></p><button type="button" class="secondary" data-runtime-reset hidden>重新加载预览</button>';
+  const message=toolsRoot.querySelector('[data-runtime-message]'),retry=toolsRoot.querySelector('[data-runtime-reset]');toolsRoot.hidden=true;
+  function stop(){generation++;abort?.abort();abort=null;runtime?.destroy();runtime=null;stage.replaceChildren();}
+  async function start(){stop();if(dead||document.hidden)return;onStart();previewRoot.replaceChildren(viewport);stage.textContent='正在载入…';toolsRoot.hidden=true;retry.hidden=true;message.textContent='';const current=generation;abort=new AbortController();
+   try{const ticket=await requestTicket({signal:abort.signal});if(dead||generation!==current)return;viewport.style.background=ticket.background??'#f7f8fa';runtime=window.mountUIRuntime({root:stage,...ticket,title:title+'详情交互预览',onStatus:state=>{if(dead||generation!==current)return;if(state.status==='failed'){message.textContent=state.error;retry.hidden=false;toolsRoot.hidden=false;stage.textContent='交互预览暂不可用';onFallback();}}});}
+   catch(error){if(dead||generation!==current)return;stage.textContent='交互预览暂不可用';message.textContent=error.message;retry.hidden=false;toolsRoot.hidden=false;onFallback();onError(error);}
+  }
+  function visible(){if(document.hidden)stop();else start();}
+  function click(event){if(event.target.closest('[data-runtime-reset]'))start();}
+  toolsRoot.addEventListener('click',click);document.addEventListener('visibilitychange',visible);start();
+  return {destroy(){if(dead)return;dead=true;stop();document.removeEventListener('visibilitychange',visible);toolsRoot.removeEventListener('click',click);toolsRoot.replaceChildren();toolsRoot.hidden=true;viewport.remove();}};
  }
  Object.assign(window,{highlightUISource,mountUISourceReader,mountUIRuntimeView});
 })();
