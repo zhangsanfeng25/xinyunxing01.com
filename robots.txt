@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+# Crawlers must be able to read the noindex response; no sitemap is submitted.

@@ -1,0 +1,62 @@
+[
+  {
+    "name": "globe",
+    "sha": "53c80ee35dd294b0193642f0731010e033ba0618",
+    "url": "https://github.com/lucide-icons/lucide/blob/main/icons/globe.svg"
+  },
+  {
+    "name": "layout-grid",
+    "sha": "f8eca3a721201b652dbbc3b76c15e92fd271c9f9",
+    "url": "https://github.com/lucide-icons/lucide/blob/main/icons/layout-grid.svg"
+  },
+  {
+    "name": "bookmark",
+    "sha": "f0112a912801351a525cbceacf60eb774b42fd74",
+    "url": "https://github.com/lucide-icons/lucide/blob/main/icons/bookmark.svg"
+  },
+  {
+    "name": "external-link",
+    "sha": "a73a9ba286ebaac4c7fc65bf9303a2fb9624ae76",
+    "url": "https://github.com/lucide-icons/lucide/blob/main/icons/external-link.svg"
+  },
+  {
+    "name": "user",
+    "sha": "8e61592bbf912f26d2e6583dffd9b1e8ebec0193",
+    "url": "https://github.com/lucide-icons/lucide/blob/main/icons/user.svg"
+  },
+  {
+    "name": "bell",
+    "sha": "0345ca35bc8cead87cf05857545e24de031e7779",
+    "url": "https://github.com/lucide-icons/lucide/blob/main/icons/bell.svg"
+  },
+  {
+    "name": "shield",
+    "sha": "e40d7d2ba8de46aa649c1ed5b1fce7d6ed2939bd",
+    "url": "https://github.com/lucide-icons/lucide/blob/main/icons/shield.svg"
+  },
+  {
+    "name": "arrow-left",
+    "sha": "b40bff851c85eff44f678eb7984fc6070d7ea721",
+    "url": "https://github.com/lucide-icons/lucide/blob/main/icons/arrow-left.svg"
+  },
+  {
+    "name": "sun",
+    "sha": "3ecadd68c530e3124e6378f32954c27659b79c11",
+    "url": "https://github.com/lucide-icons/lucide/blob/main/icons/sun.svg"
+  },
+  {
+    "name": "moon",
+    "sha": "3c4bc3110eb5f7d4caababf5da4ad51af1145a5b",
+    "url": "https://github.com/lucide-icons/lucide/blob/main/icons/moon.svg"
+  },
+  {
+    "name": "check",
+    "sha": "5abe1527434e7b251bde0661f99af96178976d8c",
+    "url": "https://github.com/lucide-icons/lucide/blob/main/icons/check.svg"
+  },
+  {
+    "name": "code",
+    "sha": "fe2378380d5d57637278b515cd15e9312a053833",
+    "url": "https://github.com/lucide-icons/lucide/blob/main/icons/code.svg"
+  }
+]
