@@ -74,3 +74,19 @@ body[data-role=guest] [data-save],body[data-role=guest] #detail [data-detail-dis
 /* Mixed resource rows retain each card's intrinsic height. */
 .home-section .cards-grid{align-items:start}
 .detail-content.website-introduction{display:block}.website-introduction .detail-info{gap:20px}.website-introduction .website-summary{color:var(--fg);line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere;margin:0}.website-introduction .website-heading{display:flex;align-items:center;gap:16px}.website-introduction .website-heading h2{margin:8px 0}.website-introduction .site-logo{flex-shrink:0}
+
+/* Compact website dialog. Native dialog retains focus trapping and Escape. */
+.website-detail-dialog{position:fixed;inset:0;margin:auto;width:min(620px,calc(100vw - 40px));height:fit-content;max-height:calc(100dvh - 48px);border:1px solid var(--border);border-radius:18px;box-shadow:0 24px 80px #0f172a2e;overflow:auto}
+.website-detail-dialog .dialog-head{padding:20px 28px;border-bottom:1px solid var(--border);background:var(--surface);font-size:13px;color:var(--muted)}
+.website-detail-dialog .detail-content{padding:28px}
+.website-detail-dialog .website-identity{display:flex;align-items:center;gap:16px}
+.website-detail-dialog .website-identity .site-logo{width:64px;height:64px;border-radius:16px}
+.website-detail-dialog .website-identity .site-logo img{width:40px;height:40px}
+.website-detail-dialog h2{margin:0 0 6px;font-size:26px;line-height:1.35;overflow-wrap:anywhere}
+.website-detail-dialog .website-domain{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.website-detail-dialog .website-category{margin:20px 0 26px}.website-detail-dialog .website-category span{display:inline-flex;align-items:center;padding:5px 10px;border-radius:6px;background:var(--tint);color:var(--blue);font-size:12px}
+.website-detail-dialog .website-about{padding:22px 0 28px;border-top:1px solid var(--border)}.website-detail-dialog .website-about h3{font-size:13px;margin:0 0 12px;color:var(--muted);font-weight:500}
+.website-detail-dialog .website-summary{font-size:15px;line-height:1.85;min-height:56px;color:var(--fg);margin:0;white-space:pre-wrap}
+.website-detail-dialog .website-footer{border-top:1px solid var(--border);padding-top:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.website-detail-dialog .website-footer .primary{margin-left:auto;order:2;min-width:152px;justify-content:center;border-radius:10px;min-height:46px}.website-detail-dialog .website-footer .secondary{border-radius:10px;min-height:46px}
+.website-detail-dialog [data-detail-discussion],.website-detail-dialog .detail-section{display:none}
+@media(max-width:760px){.website-detail-dialog{inset:auto 0 0;margin:0;width:100%;max-width:100%;max-height:90dvh;border-radius:20px 20px 0 0;border-bottom:0;padding-bottom:env(safe-area-inset-bottom)}.website-detail-dialog .dialog-head{padding:18px 20px}.website-detail-dialog .detail-content{padding:24px 20px}.website-detail-dialog h2{font-size:23px}.website-detail-dialog .website-footer .primary{flex:1}}
