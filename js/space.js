@@ -605,7 +605,7 @@
     }catch{}
   }
   window.addEventListener('storage',handleGuestEvent);
-  let restoringSession=false,sessionRestoreNeeded=!(typeof document!=='undefined'&&document.documentElement?.dataset?.existingLogin==='true'&&new URLSearchParams(location.search).get('member')==='1');
+  let restoringSession=false,sessionRestoreNeeded=true;const memberLoginRequested=typeof document!=='undefined'&&document.documentElement?.dataset?.existingLogin==='true'&&new URLSearchParams(location.search).get('member')==='1';
   async function restoreSession(){
     if(restoringSession||!sessionRestoreNeeded||member||loginStage!=='email')return;
     const epoch=requestEpoch;
@@ -616,7 +616,7 @@
     try{
       for(let attempt=0;attempt<3;attempt++){
         if(epoch!==requestEpoch||!sessionRestoreNeeded)return;
-        try{const result=await request('/api/v1/session');sessionRestoreNeeded=false;enterForum(result.member);return;}
+        try{const result=await request('/api/v1/session');sessionRestoreNeeded=false;if(memberLoginRequested&&result.member.role==='guest'){$('login-message').textContent='';return;}enterForum(result.member);return;}
         catch(error){
           if(error.code==='REQUEST_CANCELLED')return;
           if(error.status===401||error.status===403){sessionRestoreNeeded=false;$('login-message').textContent='';return;}
