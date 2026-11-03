@@ -4,7 +4,7 @@ class LivePreviewDeck {
   this.root=null;this.cards=[];this.frames=new Map();this.preferred=null;this.raf=0;this.paused=false;
   this.runtime=runtime;this.onError=onError;this.disposers=new Map();this.failedCards=new WeakSet();
   this.observer=new IntersectionObserver(()=>this.schedule(),{threshold:[0,.1,.3,.6,1]});
-  window.addEventListener('scroll',()=>this.schedule(),{passive:true,capture:true});
+  // IntersectionObserver handles viewport crossings without work on every scroll pixel.
   window.addEventListener('resize',()=>this.schedule(),{passive:true});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){this.cancelScheduled();this.update();}else this.schedule();});
  }
@@ -41,8 +41,8 @@ class LivePreviewDeck {
   const focused=document.activeElement;
   const candidates=blocked?[]:this.cards.filter(card=>card.isConnected&&!this.failedCards.has(card)).map(card=>{
    const r=card.getBoundingClientRect();const visible=Math.max(0,Math.min(r.bottom,bottom)-Math.max(r.top,header));
-   const frame=this.frames.get(card);return {card,ratio:visible/r.height,distance:Math.abs((r.top+r.bottom)/2-(header+bottom)/2),focused:frame===focused||!!frame?.contains?.(focused)};
-  }).filter(x=>x.ratio>=.25).sort((a,b)=>Number(b.focused)-Number(a.focused)||Number(b.card===this.preferred)-Number(a.card===this.preferred)||b.ratio-a.ratio||a.distance-b.distance);
+   const frame=this.frames.get(card);return {card,active:this.frames.has(card),ratio:visible/r.height,distance:Math.abs((r.top+r.bottom)/2-(header+bottom)/2),focused:frame===focused||!!frame?.contains?.(focused)};
+  }).filter(x=>x.ratio>=(x.active ? .1 : .25)).sort((a,b)=>Number(b.focused)-Number(a.focused)||Number(b.card===this.preferred)-Number(a.card===this.preferred)||Number(b.active)-Number(a.active)||b.ratio-a.ratio||a.distance-b.distance);
   const selected=new Set(candidates.slice(0,limit).map(x=>x.card));
   for(const card of [...this.frames.keys()])if(!selected.has(card))this.release(card);
   for(const card of selected){
