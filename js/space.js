@@ -114,10 +114,10 @@
     }).catch(()=>{if(epoch===requestEpoch&&available())img.dispatchEvent(new Event('error'));}).finally(()=>observer.disconnect());
   }
   const errorText=error=>error.name==='TimeoutError'?'请求超时，请确认当前状态后再试。':error.message||'连接失败，请稍后重试。';
-  function resetLogin(){loginStage='email';factorId=null;$('email-fields').hidden=false;$('mfa-fields').hidden=true;$('restart-login').hidden=true;$('email-code').disabled=false;$('email-code').required=true;$('mfa-code').disabled=true;$('mfa-code').required=false;$('mfa-code').value='';$('mfa-qr').removeAttribute('src');$('mfa-secret').textContent='';$('mfa-enrollment').hidden=true;$('enter-space').textContent='登录 →';}
+  function resetLogin(){loginStage='email';factorId=null;$('email-fields').hidden=false;$('mfa-fields').hidden=true;$('restart-login').hidden=true;$('email-code').disabled=false;$('email-code').required=true;$('mfa-code').disabled=true;$('mfa-code').required=false;$('mfa-code').value='';$('mfa-qr').removeAttribute('src');$('mfa-secret').textContent='';$('mfa-enrollment').hidden=true;$('enter-space').textContent='登录';}
   async function prepareMfa(){
-    const factor=await request('/auth/mfa/enroll','POST',{});factorId=factor.factorId;loginStage='mfa';$('email-fields').hidden=true;$('email-code').disabled=true;$('email-code').required=false;$('mfa-fields').hidden=false;$('restart-login').hidden=false;$('mfa-code').disabled=false;$('mfa-code').required=true;$('enter-space').textContent='验证并登录 →';
-    $('mfa-instruction').textContent=factor.enrolled?'输入身份验证器中的六位验证码。':'首次登录，请先绑定身份验证器。';
+    const factor=await request('/auth/mfa/enroll','POST',{});factorId=factor.factorId;loginStage='mfa';$('email-fields').hidden=true;$('email-code').disabled=true;$('email-code').required=false;$('mfa-fields').hidden=false;$('restart-login').hidden=false;$('mfa-code').disabled=false;$('mfa-code').required=true;$('enter-space').textContent='验证';
+    $('mfa-instruction').textContent=factor.enrolled?'':'首次登录，请先绑定身份验证器。';
     $('mfa-enrollment').hidden=factor.enrolled;
     if(!factor.enrolled){if(typeof factor.qrCode==='string'&&factor.qrCode.startsWith('data:image/svg+xml'))$('mfa-qr').src=factor.qrCode;$('mfa-secret').textContent=factor.secret;}
     $('mfa-code').focus();

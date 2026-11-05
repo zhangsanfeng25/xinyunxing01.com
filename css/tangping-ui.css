@@ -1,0 +1,235 @@
+/* 躺平 UI · B / shared product controls. UI samples run in separate frames. */
+:root {
+  --ui-brand:#2563eb; --ui-brand-hover:#1d4ed8; --ui-brand-pressed:#1e40af;
+  --ui-on-brand:#fff; --ui-ink:#111827; --ui-muted:#64748b;
+  --ui-canvas:#f7f8fa; --ui-surface:#fff; --ui-soft:#eff6ff;
+  --ui-soft-hover:#dbeafe; --ui-secondary-ink:#1e40af;
+  --ui-border:#cbd5e1; --ui-divider:#e5e7eb;
+  --ui-danger:#b91c1c; --ui-danger-soft:#fef2f2;
+  --ui-disabled:#e5e7eb; --ui-disabled-ink:#64748b;
+  --ui-radius:12px; --ui-panel-radius:16px; --ui-control-height:40px;
+  --ui-shadow:0 8px 28px #0f172a0d;
+  /* Bridge existing components to the same semantic colors. */
+  --canvas:var(--ui-canvas); --surface:var(--ui-surface); --fg:var(--ui-ink);
+  --text:var(--ui-ink); --ink:var(--ui-ink); --muted:var(--ui-muted);
+  --blue:var(--ui-brand); --hover:var(--ui-brand-hover); --tint:var(--ui-soft);
+  --accent:var(--ui-brand); --on-accent:var(--ui-on-brand);
+  --border:var(--ui-divider); --line:var(--ui-divider); --divider:var(--ui-divider);
+  --danger:var(--ui-danger); --ring:var(--ui-brand); --shadow:var(--ui-shadow);
+}
+:root[data-theme=dark] {
+  --ui-brand:#2563eb; --ui-brand-hover:#1d4ed8; --ui-brand-pressed:#1e40af;
+  --ui-on-brand:#fff; --ui-ink:#f1f5f9; --ui-muted:#b0bed0;
+  --ui-canvas:#10151e; --ui-surface:#192231; --ui-soft:#203452;
+  --ui-soft-hover:#2a4367; --ui-secondary-ink:#bfdbfe;
+  --ui-border:#526078; --ui-divider:#303d50;
+  --ui-danger:#fca5a5; --ui-danger-soft:#42252e;
+  --ui-disabled:#303b4c; --ui-disabled-ink:#a3afbf;
+  --ui-shadow:0 8px 28px #0003;
+  --canvas:var(--ui-canvas); --surface:var(--ui-surface); --fg:var(--ui-ink);
+  --text:var(--ui-ink); --ink:var(--ui-ink); --muted:var(--ui-muted);
+  --blue:var(--ui-brand); --hover:var(--ui-brand-hover); --tint:var(--ui-soft);
+  --accent:var(--ui-brand); --on-accent:var(--ui-on-brand);
+  --border:var(--ui-divider); --line:var(--ui-divider); --divider:var(--ui-divider);
+  --danger:var(--ui-danger); --ring:#93c5fd; --shadow:var(--ui-shadow);
+}
+html:root body { color:var(--ui-ink); font-family:system-ui,-apple-system,'Segoe UI','Microsoft YaHei',sans-serif; }
+html:root body :is(button,input,select,textarea) { font-family:inherit; }
+html:root body :is(button,a,input,select,textarea,summary):focus-visible {
+  outline:2px solid var(--ring); outline-offset:3px;
+}
+html:root body :is(button,a) { -webkit-tap-highlight-color:transparent; }
+html:root body button { transition:background-color 160ms ease,border-color 160ms ease,color 160ms ease,box-shadow 160ms ease; }
+/* Only action controls are normalized; card covers and preview content keep their layout. */
+html:root body :is(.primary,.secondary,.publish-button,.send-code,.guest-login-button,.ui-button),
+html:root body .account-security button:where(:not(.icon-btn):not(.security-close)) {
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  min-height:var(--ui-control-height); padding:9px 16px;
+  border:1px solid transparent; border-radius:var(--ui-radius);
+  font-size:14px; font-weight:600; line-height:20px; text-decoration:none;
+  box-shadow:none; background:var(--ui-soft); color:var(--ui-secondary-ink);
+  cursor:pointer; filter:none; transform:none;
+}
+html:root body :is(.primary,.publish-button,.account-security button.primary) {
+  background:var(--ui-brand); color:var(--ui-on-brand); border-color:var(--ui-brand);
+}
+html:root body .primary:not(.add-button) { padding-inline:28px; }
+html:root body :is(.secondary,.send-code,.guest-login-button,.account-security button):hover:not(:disabled) {
+  background:var(--ui-soft-hover); border-color:transparent; box-shadow:none; filter:none;
+}
+html:root body :is(.primary,.publish-button,.account-security button.primary):hover:not(:disabled) {
+  background:var(--ui-brand-hover); border-color:var(--ui-brand-hover); box-shadow:none; filter:none;
+}
+html:root body :is(.primary,.publish-button,.account-security button.primary):active:not(:disabled) {
+  background:var(--ui-brand-pressed); border-color:var(--ui-brand-pressed); transform:none;
+}
+html:root body :is(.secondary,.send-code,.guest-login-button):active:not(:disabled) { background:var(--ui-soft-hover); transform:none; }
+html:root body :is(.danger,.primary.danger,.secondary.danger,[data-action=service-remove-confirm],[data-life=purge],
+  [data-empty-trash],[data-close-account],[data-security-revoke]) {
+  color:var(--ui-danger); background:var(--ui-danger-soft); border:1px solid var(--ui-danger);
+}
+html:root body :is(.danger,.primary.danger,.secondary.danger,[data-action=service-remove-confirm],[data-life=purge],
+  [data-empty-trash],[data-close-account],[data-security-revoke]):hover:not(:disabled) {
+  color:var(--ui-danger); background:var(--ui-danger-soft); border-color:var(--ui-danger);
+  box-shadow:inset 0 0 0 1px var(--ui-danger);
+}
+html:root body :is(.text-button,.text-link,.catalog-breadcrumb button) {
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  min-height:32px; padding:6px 8px; border:1px solid transparent;
+  border-radius:var(--ui-radius); color:var(--ui-secondary-ink);
+  font-size:14px; line-height:20px; background:transparent; text-decoration:none;
+}
+html:root body :is(.text-button,.text-link,.catalog-breadcrumb button):hover:not(:disabled) { background:var(--ui-soft); }
+html:root body :is(.icon-btn,.icon-button,.save-btn,.site-actions .icon-btn,.site-actions .save-btn) {
+  display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;
+  width:40px; height:40px; min-height:40px; padding:10px;
+  border:1px solid transparent; border-radius:var(--ui-radius);
+  color:var(--ui-ink); background:transparent; box-shadow:none;
+}
+html:root body :is(.icon-btn,.icon-button,.save-btn):hover:not(:disabled) { background:var(--ui-soft); filter:none; }
+html:root body :is(.icon-btn,.icon-button,.save-btn) :is(img,svg,.icon) { width:20px; height:20px; }
+html:root body .save-btn.saved { background:var(--ui-soft); color:var(--ui-secondary-ink); }
+html:root body .add-button { min-height:40px; border-radius:var(--ui-radius); }
+html:root body .header-actions .mobile-search.icon-btn { display:none; }
+html:root body .mobile-categories.secondary { display:none; }
+html:root body :is(button,.primary,.secondary,.publish-button,.send-code,.guest-login-button,.account-security button):disabled,
+html:root body :is(.primary,.secondary)[aria-disabled=true] {
+  opacity:1; background:var(--ui-disabled); color:var(--ui-disabled-ink);
+  border-color:transparent; box-shadow:none; cursor:not-allowed; filter:none; transform:none;
+}
+html:root body button[aria-busy=true] { cursor:progress; position:relative; }
+html:root body button[aria-busy=true]::before {
+  content:''; position:absolute; left:8px; top:calc(50% - 7px); width:14px; height:14px;
+  border:2px solid currentColor; border-right-color:transparent; border-radius:50%;
+  animation:ui-spin 800ms linear infinite;
+}
+html:root body button.primary[aria-busy=true] {
+  background:var(--ui-brand); color:var(--ui-on-brand); border-color:var(--ui-brand);
+}
+html:root body input[type=file]::file-selector-button {
+  border:0; border-radius:8px; background:var(--ui-soft); color:var(--ui-secondary-ink);
+  padding:6px 12px; margin-right:12px; font:inherit; cursor:pointer;
+}
+@keyframes ui-spin { to { transform:rotate(360deg); } }
+/* Native validation remains native; only user-touched invalid controls receive error styling. */
+html:root body :is(input,select,textarea):not([type=checkbox]):not([type=radio]):where(:not([type=range]):not([type=hidden])),
+html:root body .account-security :is(input:not([type=checkbox]):not([type=radio]),select) {
+  box-sizing:border-box; min-width:0; max-width:100%; min-height:40px;
+  padding:9px 12px; border:1px solid var(--ui-border); border-radius:var(--ui-radius);
+  background:var(--ui-surface); color:var(--ui-ink); font-size:14px; line-height:20px;
+  box-shadow:none; transition:border-color 160ms ease,box-shadow 160ms ease;
+}
+html:root body textarea { line-height:1.6; resize:vertical; }
+html:root body :is(input,textarea)::placeholder { color:var(--ui-muted); opacity:1; }
+html:root body :is(input,textarea,select):not([type=checkbox]):not([type=radio]):focus {
+  border-color:var(--ui-brand); outline:2px solid var(--ring); outline-offset:2px;
+}
+html:root body :is(input,textarea,select):not([type=checkbox]):not([type=radio]):is([aria-invalid=true],:user-invalid:not(:placeholder-shown)) {
+  border-color:var(--ui-danger);
+}
+html:root body :is(input,textarea,select):not([type=checkbox]):not([type=radio]):is([aria-invalid=true],:user-invalid:not(:placeholder-shown)):focus { outline-color:var(--ui-danger); }
+html:root body :is(input,textarea,select):not([type=checkbox]):not([type=radio]):disabled {
+  opacity:1; background:var(--ui-disabled); color:var(--ui-disabled-ink); cursor:not-allowed;
+}
+html:root body :is(input,textarea):not([type=checkbox]):not([type=radio])[readonly] { background:var(--ui-canvas); }
+html:root body :is(input[type=checkbox],input[type=radio]) {
+  accent-color:var(--ui-brand); width:18px; height:18px; min-height:18px;
+  padding:0; flex-shrink:0; cursor:pointer;
+}
+html:root body :is(.field,.account-security .field) { gap:8px; font-size:14px; line-height:1.5; }
+html:root body .field { margin-bottom:20px; }
+html:root body :is(.global-search,.catalog-search,.forum-search) {
+  min-height:40px; height:auto; padding:0 12px; gap:8px;
+  border:1px solid var(--ui-border); border-radius:var(--ui-radius); background:var(--ui-surface);
+}
+html:root body :is(.global-search,.catalog-search,.forum-search) input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]) {
+  border:0; border-radius:0; outline:none; padding:9px 0; background:transparent; box-shadow:none;
+}
+html:root body :is(.global-search,.catalog-search,.forum-search):focus-within { outline:2px solid var(--ring); outline-offset:2px; border-color:var(--ui-brand); }
+html:root body :is(.chip,.type-choice,.side-menu button,.tree-item,.account-menu a,.account-menu button) { border-radius:var(--ui-radius); }
+html:root body :is(.chip,.type-choice,.side-menu button,.tree-item) { min-height:40px; }
+html:root body :is(.chip.active,.type-choice.selected,.side-menu button.active,.tree-item.active) {
+  background:var(--ui-soft); color:var(--ui-secondary-ink); border-color:transparent;
+}
+html:root body :is(.chip,.type-choice,.side-menu button,.tree-item):hover:not(:disabled) { background:var(--ui-soft); }
+html:root body :is(.catalog-pagination,.pagination) button { min-width:40px; min-height:40px; border-radius:var(--ui-radius); }
+html:root body :is(.catalog-pagination,.pagination) button[aria-current=page] { background:var(--ui-brand); color:var(--ui-on-brand); }
+html:root body :is(.panel,.resource-card,.site-card,.compact-card,.admin-widget) { border-radius:var(--ui-panel-radius); }
+html:root body :is(.panel,.admin-widget) { background:var(--ui-surface); border-color:var(--ui-divider); }
+html:root body :is(.account-menu,dialog:not(.category-drawer):not(.detail-drawer):not(.catalog-lightbox)) {
+  border-radius:var(--ui-panel-radius); border-color:var(--ui-divider);
+  background:var(--ui-surface); color:var(--ui-ink); box-shadow:var(--ui-shadow);
+}
+html:root body dialog::backdrop { background:#0f172a66; backdrop-filter:blur(3px); }
+html:root body :is(.form-actions,.detail-actions,.security-actions) { gap:12px; }
+html:root body :is(.form-message,[data-editor-message],[data-personal-message],[data-security-message]) { font-size:14px; line-height:1.6; }
+html:root body :is(.form-message,[data-editor-message],[data-personal-message],[data-security-message]):empty { display:none; }
+html:root body .toast { border-radius:var(--ui-radius); background:var(--ui-surface); color:var(--ui-ink); border:1px solid var(--ui-border); box-shadow:var(--ui-shadow); font-size:14px; }
+/* Keep the approved welcome artwork; unify the login panel and controls. */
+html:root body .login-card { background:var(--ui-surface); border:1px solid var(--ui-divider); border-radius:20px; box-shadow:var(--ui-shadow); color:var(--ui-ink); }
+html:root body .login-card .field input { min-height:48px; font-size:16px; }
+html:root body .login-card :is(.login-button,.guest-login-button) { min-height:48px; font-size:15px; border-radius:var(--ui-radius); }
+html:root body .login-card .send-code { min-height:48px; }
+html:root body .login-card .email-input-row {
+  min-height:48px; height:auto; border:1px solid var(--ui-border);
+  border-radius:var(--ui-radius); background:var(--ui-surface);
+}
+html:root body .login-card .email-input-row:focus-within {
+  outline:2px solid var(--ring); outline-offset:2px; border-color:var(--ui-brand);
+}
+html:root body .login-card .email-input-row #account {
+  min-height:48px; font-size:16px; border:0; border-radius:0;
+  background:transparent; outline:none; box-shadow:none;
+}
+html:root body .login-card .email-input-row .send-code {
+  border:0; border-left:1px solid var(--ui-divider); border-radius:0;
+  background:var(--ui-soft); color:var(--ui-secondary-ink);
+}
+html:root body .login-card .email-input-row .send-code:hover:not(:disabled) { background:var(--ui-soft-hover); }
+html:root body .login-card .email-input-row .send-code:disabled { background:var(--ui-disabled); color:var(--ui-disabled-ink); }
+html:root body .login-card #email-code { min-height:48px; font-size:16px; }
+html:root body .login-links { gap:8px; }
+html:root body .login-card :is(#login-context,.form-message):empty { display:none; }
+html:root body .login-card #mfa-instruction:empty { display:none; }
+html:root body .login-card :is(#restart-login,#session-retry) { margin-top:16px; }
+html:root body .remember-login input { min-height:18px; }
+html:root body :is(.remember-login,.switch-label,.personal-select,.notification-preference>label) { min-height:44px; }
+html:root body :is(.switch-label,.personal-select) { display:inline-flex; align-items:center; gap:8px; }
+html:root body .switch-label input {
+  appearance:none; position:relative; width:40px; height:24px; min-height:24px;
+  border:1px solid var(--ui-border); border-radius:999px; background:var(--ui-disabled);
+}
+html:root body .switch-label input::before {
+  content:''; position:absolute; top:3px; left:3px; width:16px; height:16px;
+  border-radius:50%; background:var(--ui-surface); transition:transform 160ms ease;
+}
+html:root body .switch-label input:checked { background:var(--ui-brand); border-color:var(--ui-brand); }
+html:root body .switch-label input:checked::before { transform:translateX(16px); background:#fff; }
+html:root body .account-security { --surface:var(--ui-surface); --text:var(--ui-ink); --border:var(--ui-divider); }
+html:root body .setting-row strong { font-size:15px; }
+html:root body .site-copy>small,html:root body .card-body>p,html:root body .card-description { font-size:14px; line-height:1.6; }
+html:root body .badge { border-radius:6px; }
+@media(max-width:760px) {
+  html:root body .header-actions .mobile-search.icon-btn { display:inline-flex; }
+  html:root body .mobile-categories.secondary { display:inline-flex; }
+  html:root body :is(.primary,.secondary,.publish-button,.send-code,.guest-login-button,.text-button,.text-link,
+    .chip,.type-choice,.tree-item,.side-menu button,.catalog-pagination button,.pagination button,
+    .account-menu a,.account-menu button) { min-height:44px; }
+  html:root body :is(.icon-btn,.icon-button,.save-btn,.site-actions .icon-btn,.site-actions .save-btn,.add-button) {
+    width:44px; height:44px; min-height:44px; padding:10px;
+  }
+  html:root body .header-actions { gap:8px; }
+  html:root body .header-actions .avatar { width:44px; height:44px; min-height:44px; }
+  html:root body :is(input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea),
+  html:root body .account-security :is(input:not([type=checkbox]):not([type=radio]),select) { min-height:44px; font-size:16px; }
+  html:root body :is(.global-search,.catalog-search,.forum-search) { min-height:44px; }
+  html:root body :is(.global-search,.catalog-search,.forum-search) input { min-height:42px; }
+  html:root body .form-actions { flex-wrap:wrap; }
+  html:root body .type-picker { gap:8px; }
+  html:root body .type-choice { padding:8px 12px; }
+  html:root body .tree-expand { min-width:44px; min-height:44px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  html:root body *,html:root body *::before,html:root body *::after { transition:none!important; animation:none!important; }
+}
+html:root body.reduce-motion *,html:root body.reduce-motion *::before,html:root body.reduce-motion *::after { transition:none!important; animation:none!important; }
