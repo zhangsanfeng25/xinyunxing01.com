@@ -1,7 +1,7 @@
 (() => {
  'use strict';const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),labels={comment:'评论与回复',feedback:'反馈结果',announcement:'管理员公告',security:'账户安全'};
  function mountCatalogNotifications({button,client,onError=()=>{},pollSeconds=120}){
-  const preferenceEdits=new Map();let saving=false,preferenceRevision=0,page=1;let alive=true,epoch=0,timer=null,data=null,prefs=null,busy=false,lastAttempt=-Infinity;const dialog=document.createElement('dialog');dialog.className='notification-dialog small-dialog';dialog.setAttribute('aria-label','通知中心');document.body.append(dialog);const status=v=>{const el=dialog.querySelector('[data-notice-status]');if(el)el.textContent=v;};
+  const preferenceEdits=new Map();let saving=false,preferenceRevision=0,page=1;let alive=true,epoch=0,timer=null,data=null,prefs=null,busy=false,loadFailed=false,lastAttempt=-Infinity;const dialog=document.createElement('dialog');dialog.className='notification-dialog small-dialog';dialog.setAttribute('aria-label','通知中心');document.body.append(dialog);const status=v=>{const el=dialog.querySelector('[data-notice-status]');if(el)el.textContent=v;};
   function render(){
    if(!alive)return;
    const count=data?.unread??0;
@@ -22,7 +22,7 @@
       ${count?'<button type="button" class="secondary" data-notice-all>全部标为已读</button>':''}
      </div>
      <p data-notice-status role="status"></p>
-     ${data?data.items.map(row).join('')||'<p class="notification-empty">暂无通知</p>':'<p class="notification-empty">正在载入…</p>'}
+     ${data?data.items.map(row).join('')||'<p class="notification-empty">暂无通知</p>':loadFailed?'':'<div class="notification-loading" role="status"><span class="ui-visually-hidden">正在载入通知…</span></div>'}
      ${data?.totalPages>1?`<nav class="pagination" aria-label="通知分页"><button class="secondary" data-notice-page="${data.page-1}" ${data.page<=1?'disabled':''}>上一页</button><span>${data.page}/${data.totalPages}</span><button class="secondary" data-notice-page="${data.page+1}" ${data.page>=data.totalPages?'disabled':''}>下一页</button></nav>`:''}
      ${prefs?'<details data-notice-preferences '+(preferencesOpen?'open':'')+'><summary>通知偏好</summary><form data-notice-preference>'+prefs.items.map(p=>{
       const choice=preferenceEdits.get(p.type)??p;
@@ -30,7 +30,7 @@
      }).join('')+'<button class="secondary" type="submit" '+(saving?'disabled':'')+'>保存偏好</button></form></details>':''}
     </div>`;
   }
-  async function load(){if(!alive||document.hidden||busy)return;busy=true;lastAttempt=Date.now();const own=epoch,prefRevision=preferenceRevision;try{const [a,b]=await Promise.all([client.notifications({page}),client.notificationPreferences()]);if(!alive||own!==epoch)return;data=a;page=a.page;if(prefRevision===preferenceRevision&&!saving)prefs=b;render();}catch(error){if(alive)status(error.message);onError(error);}finally{busy=false;}}
+  async function load(){if(!alive||document.hidden||busy)return;busy=true;if(loadFailed&&!data){loadFailed=false;render();}lastAttempt=Date.now();const own=epoch,prefRevision=preferenceRevision;try{const [a,b]=await Promise.all([client.notifications({page}),client.notificationPreferences()]);if(!alive||own!==epoch)return;data=a;page=a.page;if(prefRevision===preferenceRevision&&!saving)prefs=b;render();}catch(error){if(alive){if(!data){loadFailed=true;render();}status(error.message);}onError(error);}finally{busy=false;}}
   function open(){if(!alive)return;render();dialog.showModal();load();}
   async function click(e){const b=e.target.closest('button');if(!b||b.type==='submit')return;e.stopPropagation();if(b.hasAttribute('data-notice-close'))return dialog.close();try{if(b.dataset.noticePage)page=Number(b.dataset.noticePage);if(b.dataset.noticeRead)await client.notificationRead({id:b.dataset.noticeRead});if(b.hasAttribute('data-notice-all'))await client.notificationRead({all:true});await load();}catch(error){status(error.message);onError(error);}}
   function change(e){

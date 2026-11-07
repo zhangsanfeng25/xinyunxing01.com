@@ -36,7 +36,19 @@
     if($('theme-select'))$('theme-select').value=displayPreferences.theme;
     if($('motion-toggle'))$('motion-toggle').checked=displayPreferences.motion;
   }
-  function saveDisplayPreferences(){try{localStorage.setItem('forum-display-v03',JSON.stringify(displayPreferences));}catch{}applyDisplayPreferences();}
+  function saveDisplayPreferences(change){
+    displayPreferences={...displayPreferences,...change};
+    try{
+      displayPreferences={...readDisplayPreferences(localStorage),...change};
+      localStorage.setItem('forum-display-v03',JSON.stringify(displayPreferences));
+    }catch{}
+    applyDisplayPreferences();
+  }
+  window.addEventListener('storage',event=>{
+    if(event.key!=='forum-display-v03'&&event.key!==null)return;
+    displayPreferences=readDisplayPreferences(localStorage);
+    applyDisplayPreferences();
+  });
   applyDisplayPreferences();systemTheme.addEventListener('change',applyDisplayPreferences);systemMotion.addEventListener('change',applyDisplayPreferences);
   // Mobile address-bar/keyboard height changes must not recrop the wallpaper.
   let wallpaperWidth = -1;
@@ -133,11 +145,12 @@
   updateOtpCountdown();
   $('send-code').addEventListener('click',async()=>{
     const button=$('send-code');if(button.disabled||!$('account').reportValidity())return;
-    button.disabled=true;$('login-message').dataset.state='loading';$('login-message').textContent='正在发送…';
+    button.disabled=true;button.setAttribute('aria-busy','true');$('login-message').dataset.state='loading';$('login-message').textContent='正在发送…';
     try{
       const result=await request('/auth/otp','POST',{email:$('account').value.trim()});$('login-message').dataset.state='success';$('login-message').textContent=result.message;
       otpResendUntil=Date.now()+60000;otpResendTimer=setInterval(updateOtpCountdown,1000);updateOtpCountdown();
     }catch(error){$('login-message').dataset.state='error';$('login-message').textContent=errorText(error);button.disabled=false;}
+    finally{button.removeAttribute('aria-busy');}
   });
   $('restart-login').addEventListener('click',async()=>{try{await request('/auth/logout','POST',{});resetLogin();$('email-code').value='';$('login-message').textContent='';}catch(error){$('login-message').dataset.state='error';$('login-message').textContent=errorText(error);}});
 
@@ -181,8 +194,8 @@
     $('view-retry').hidden=true;document.querySelectorAll('#member-add-dialog,#members-dialog,#announcements-dialog').forEach(el=>{if(el.open)el.close();});syncViewRoute(view);items.length=0;lastListLoadedAt=0;render();if(member&&!restoringList){const cached=restoreViewCache();if(!cached?.fresh)refreshView();}if(member&&view==='all')resourceHome.enter();closeSidebar();if(view==='websites'&&typeof websitesUI!=='undefined')websitesUI.enter({focus});if(view==='designs'&&!routing)resourcesUI.enter();syncBoardComposer();if(focus&&!['websites','designs','all'].includes(view))$(view==='load'?'load-title':'page-title').focus({preventScroll:true});
   }
   $('login-form').addEventListener('submit',async event=>{
-    event.preventDefault();$('enter-space').disabled=true;$('login-message').dataset.state='loading';$('login-message').textContent='正在验证…';
-    try{if(loginStage==='email'){const result=await withGuestLock(()=>request('/auth/verify','POST',{email:$('account').value.trim(),code:$('email-code').value.trim(),rememberMe:$('remember-me')?.checked===true}));if(result.stage==='devices'){window.AccountSecurity.openLogin({stage:result,onAuthenticated:identity=>{enterForum(identity,true);document.querySelector('.account-security-dialog')?.close();}});}else if(result.stage==='authenticated')enterForum(result.member,true);else{loginStage='pending';$('restart-login').hidden=false;await prepareMfa();$('login-message').textContent='';}}else if(loginStage==='pending'){await prepareMfa();$('login-message').textContent='';}else{const result=await request('/auth/mfa/verify','POST',{factorId,code:$('mfa-code').value.trim()});if(result.stage==='devices')window.AccountSecurity.openLogin({stage:result,onAuthenticated:identity=>{enterForum(identity,true);document.querySelector('.account-security-dialog')?.close();}});else enterForum(result.member,true);}}catch(error){$('login-message').dataset.state='error';$('login-message').textContent=errorText(error);}finally{$('enter-space').disabled=false;}
+    event.preventDefault();const button=$('enter-space');if(button.disabled)return;button.disabled=true;button.setAttribute('aria-busy','true');$('login-message').dataset.state='loading';$('login-message').textContent='正在验证…';
+    try{if(loginStage==='email'){const result=await withGuestLock(()=>request('/auth/verify','POST',{email:$('account').value.trim(),code:$('email-code').value.trim(),rememberMe:$('remember-me')?.checked===true}));if(result.stage==='devices'){window.AccountSecurity.openLogin({stage:result,onAuthenticated:identity=>{enterForum(identity,true);document.querySelector('.account-security-dialog')?.close();}});}else if(result.stage==='authenticated')enterForum(result.member,true);else{loginStage='pending';$('restart-login').hidden=false;await prepareMfa();$('login-message').textContent='';}}else if(loginStage==='pending'){await prepareMfa();$('login-message').textContent='';}else{const result=await request('/auth/mfa/verify','POST',{factorId,code:$('mfa-code').value.trim()});if(result.stage==='devices')window.AccountSecurity.openLogin({stage:result,onAuthenticated:identity=>{enterForum(identity,true);document.querySelector('.account-security-dialog')?.close();}});else enterForum(result.member,true);}}catch(error){$('login-message').dataset.state='error';$('login-message').textContent=errorText(error);}finally{button.disabled=false;button.removeAttribute('aria-busy');}
   });
   $('enter-space').disabled=false;
   document.querySelectorAll('[data-side]').forEach(el=>el.addEventListener('click',()=>{setView(el.dataset.side,true);if(el.closest('#profile-menu')){$('profile-menu').hidden=true;$('profile-toggle').setAttribute('aria-expanded','false');}}));
@@ -342,7 +355,7 @@
   $('add-member').addEventListener('click',()=>{if(member?.role==='admin'){$('member-form').hidden=false;$('member-message').textContent='';$('member-add-dialog').showModal();$('member-email').focus();}});
   $('all-members').addEventListener('click',()=>{$('members-dialog').showModal();refreshAllMembers();});
   document.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>$(button.dataset.close).close()));
-  $('motion-toggle').addEventListener('change',()=>{displayPreferences.motion=$('motion-toggle').checked;saveDisplayPreferences();});
+  $('motion-toggle').addEventListener('change',()=>{saveDisplayPreferences({motion:$('motion-toggle').checked});});
   async function refreshView(append=false){
     if(!member||['load','websites','designs','all'].includes(currentView))return;const generation=++feedGeneration;nextCursor=append?nextCursor:null;
     try{
@@ -538,8 +551,8 @@
     }
   }
   // End V0.3 navigation controller
-  document.querySelectorAll('[data-theme-toggle]').forEach(button=>button.addEventListener('click',()=>{displayPreferences.theme=document.documentElement.dataset.theme==='dark'?'light':'dark';saveDisplayPreferences();}));
-  $('theme-select').addEventListener('change',()=>{displayPreferences.theme=$('theme-select').value;saveDisplayPreferences();});
+  document.querySelectorAll('[data-theme-toggle]').forEach(button=>button.addEventListener('click',()=>{saveDisplayPreferences({theme:document.documentElement.dataset.theme==='dark'?'light':'dark'});}));
+  $('theme-select').addEventListener('change',()=>{saveDisplayPreferences({theme:$('theme-select').value});});
   $('profile-home').addEventListener('click',()=>{setView('profile',true);$('profile-menu').hidden=true;$('profile-toggle').setAttribute('aria-expanded','false');});
   document.querySelectorAll('[data-profile-view]').forEach(button=>button.addEventListener('click',()=>setView(button.dataset.profileView,true)));
   $('public-back').addEventListener('click',()=>{if(document.body.dataset.defaultPage==='missing'){location.href='/';return;}history.pushState(null,'',member?'#/view/all':'#intro');applyCurrentRoute();});

@@ -97,9 +97,10 @@ html:root body :is(.primary,.secondary)[aria-disabled=true] {
   opacity:1; background:var(--ui-disabled); color:var(--ui-disabled-ink);
   border-color:transparent; box-shadow:none; cursor:not-allowed; filter:none; transform:none;
 }
-html:root body button[aria-busy=true] { cursor:progress; position:relative; }
+html:root body button[aria-busy=true] { cursor:progress; }
 html:root body button[aria-busy=true]::before {
-  content:''; position:absolute; left:8px; top:calc(50% - 7px); width:14px; height:14px;
+  content:''; display:inline-block; box-sizing:border-box; flex:none; width:14px; height:14px;
+  margin-inline-end:6px; vertical-align:-2px;
   border:2px solid currentColor; border-right-color:transparent; border-radius:50%;
   animation:ui-spin 800ms linear infinite;
 }
@@ -233,3 +234,109 @@ html:root body .badge { border-radius:6px; }
   html:root body *,html:root body *::before,html:root body *::after { transition:none!important; animation:none!important; }
 }
 html:root body.reduce-motion *,html:root body.reduce-motion *::before,html:root body.reduce-motion *::after { transition:none!important; animation:none!important; }
+
+/* Keep native dialog focus, Escape and top-layer behavior. */
+@keyframes ui-dialog-enter { from { opacity:0; transform:var(--ui-closed-transform); } }
+html:root body dialog {
+  --ui-layer-time:180ms;
+  --ui-closed-transform:translateY(6px) scale(.98);
+}
+html:root body :is(.detail-drawer:not(.website-detail-dialog,.prompt-detail-dialog),.category-drawer) {
+  --ui-layer-time:250ms;
+}
+html:root body .detail-drawer:not(.website-detail-dialog,.prompt-detail-dialog) { --ui-closed-transform:translateX(100%); }
+html:root body .category-drawer { --ui-closed-transform:translateX(-100%); }
+html:root body dialog:modal { animation:ui-dialog-enter var(--ui-layer-time) ease-out; }
+@supports (overlay:auto) and (transition-behavior:allow-discrete) {
+  html:root body dialog {
+    opacity:0; transform:var(--ui-closed-transform); pointer-events:none; interactivity:inert;
+    transition:opacity var(--ui-layer-time) ease, transform var(--ui-layer-time) cubic-bezier(.2,.65,.25,1),
+      display var(--ui-layer-time) allow-discrete, overlay var(--ui-layer-time) allow-discrete;
+  }
+  html:root body dialog[open] { opacity:1; transform:none; pointer-events:auto; interactivity:auto; animation:none; }
+  html:root body dialog::backdrop {
+    opacity:0; pointer-events:none;
+    transition:opacity var(--ui-layer-time) ease, display var(--ui-layer-time) allow-discrete,
+      overlay var(--ui-layer-time) allow-discrete;
+  }
+  html:root body dialog[open]::backdrop { opacity:1; pointer-events:auto; }
+  @starting-style {
+    html:root body dialog:modal { opacity:0; transform:var(--ui-closed-transform); }
+    html:root body dialog:modal::backdrop { opacity:0; }
+  }
+}
+/* Keep disclosures native so closed content stays out of keyboard navigation. */
+@supports selector(details::details-content) {
+  @supports (interpolate-size:allow-keywords) {
+    html:root body details { interpolate-size:allow-keywords; }
+    html:root body details::details-content {
+      block-size:0; opacity:0; overflow:clip;
+      transition:block-size 200ms ease, opacity 160ms ease, content-visibility 200ms allow-discrete;
+    }
+    html:root body details[open]::details-content { block-size:auto; opacity:1; }
+  }
+}
+@keyframes ui-content-enter { from { opacity:0; } }
+html:root body :is(#listing-results,#global-results,[data-personal-results])>*:not(.ui-skeleton) { animation:ui-content-enter 170ms ease-out; }
+html:root body .tree-children[data-branch-toggled]:not([hidden]) { animation:ui-content-enter 180ms ease-out; }
+@supports (interpolate-size:allow-keywords) and (transition-behavior:allow-discrete) {
+  html:root body .tree-children {
+    interpolate-size:allow-keywords; block-size:auto; opacity:1; overflow:clip;
+    transition:block-size 200ms ease, opacity 160ms ease, display 200ms allow-discrete;
+  }
+  html:root body .tree-children[hidden] { block-size:0; opacity:0; }
+  html:root body .tree-children[data-branch-toggled]:not([hidden]) { animation:none; }
+  @starting-style { html:root body .tree-children[data-branch-toggled]:not([hidden]) { block-size:0; opacity:0; } }
+}
+@media(hover:hover) {
+  html:root body :is(.resource-card,.site-card,.compact-card,.website-card) {
+    transition:transform 160ms ease,box-shadow 160ms ease,border-color 160ms ease;
+  }
+  html:root body :is(.resource-card,.site-card,.compact-card,.website-card):hover {
+    border-color:var(--ui-secondary-ink); box-shadow:var(--ui-shadow); transform:translateY(-2px);
+  }
+  html.motion-off body :is(.resource-card,.site-card,.compact-card,.website-card):hover,
+  html:root body.reduce-motion :is(.resource-card,.site-card,.compact-card,.website-card):hover { transform:none; }
+}
+html:root body :is(.icon-btn,.icon-button,.save-btn):active:not(:disabled) { background:var(--ui-soft-hover); }
+html:root body .ui-tooltip {
+  position:fixed; inset:auto; margin:0; max-width:min(18rem,calc(100vw - 16px));
+  padding:6px 9px; border:0; border-radius:6px;
+  background:var(--ui-ink); color:var(--ui-surface); font-size:12px; line-height:1.4;
+  box-shadow:var(--ui-shadow);
+}
+html[data-auth-check] .ui-tooltip { visibility:hidden!important; }
+html:root body .ui-visually-hidden {
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0;
+}
+@keyframes ui-skeleton-sweep { to { background-position:-180% 0; } }
+html:root body :is(.ui-skeleton,.personal-loading,.notification-loading,.runtime-slot[data-preview-status=loading],.card-image-wrap:not(.is-loaded,.has-error) .card-image-loading) {
+  display:grid; align-content:center; gap:12px; padding:16px; min-height:90px;
+}
+html:root body :is(.runtime-slot[data-preview-status=loading],.detail-runtime-stage.ui-skeleton) {
+  justify-items:stretch; background:var(--ui-canvas);
+}
+html:root body .detail-runtime-stage.ui-skeleton iframe { visibility:hidden; }
+html:root body .runtime-unavailable { background:var(--ui-canvas); color:var(--ui-muted); }
+html:root body :is(.ui-skeleton,.personal-loading,.notification-loading,.runtime-slot[data-preview-status=loading],.card-image-wrap:not(.is-loaded,.has-error) .card-image-loading)::before,
+html:root body :is(.ui-skeleton,.personal-loading,.notification-loading,.runtime-slot[data-preview-status=loading],.card-image-wrap:not(.is-loaded,.has-error) .card-image-loading)::after {
+  content:''; display:block; height:20px; border-radius:8px;
+  width:100%;
+  background:linear-gradient(105deg,var(--ui-divider) 35%,var(--ui-soft) 48%,var(--ui-divider) 61%) 150% 0/220% 100%;
+  animation:ui-skeleton-sweep 1.6s ease-in-out infinite;
+}
+html:root body :is(.ui-skeleton,.personal-loading,.notification-loading,.runtime-slot[data-preview-status=loading],.card-image-wrap:not(.is-loaded,.has-error) .card-image-loading)::after { width:62%; }
+html:root body .card-image-wrap:not(.is-loaded,.has-error) .card-image-loading { justify-items:start; }
+html:root body .personal-filters .field { margin:0; }
+html:root body :is(.personal-filters,.admin-filter)>button { align-self:end; margin:0; }
+@media(prefers-reduced-motion:no-preference) {
+  html:root body.reduce-motion .switch-label input::before { transition:transform 160ms ease!important; }
+}
+@media(prefers-reduced-motion:reduce) {
+  html:root body :is(.resource-card,.site-card,.compact-card,.website-card):hover { transform:none; }
+  html:root body dialog::backdrop { transition:none!important; }
+  html:root body details::details-content { transition:none!important; }
+}
+html.motion-off body dialog::backdrop,html:root body.reduce-motion dialog::backdrop { transition:none!important; }
+html.motion-off body details::details-content,html:root body.reduce-motion details::details-content { transition:none!important; }

@@ -56,7 +56,7 @@
   }
   function reset(){show(`<h2>重置密码</h2><p class="muted">重置链接 30 分钟内有效，仅可使用一次。完成后全部设备退出。</p><form data-security-form="reset">${field('用户名或绑定邮箱','account','text','required autocomplete="username"')}<button class="primary">申请重置链接</button></form><button type="button" class="text-button" data-security-action="login">返回登录</button>`);}
   function redemption(kind,token){mode='redeem';show(`<h2>${kind==='invite'?'接受邀请':kind==='reset'?'重置密码':'确认变更邮箱'}</h2><p class="muted">${kind==='email_change'?'请确认收件的新邮箱，完成后全部设备退出。':'请填写接收链接的邮箱。完成后需要重新登录。'}</p><form data-security-form="redeem">${field('收件邮箱','email','email','required autocomplete="email"')}${kind==='invite'?field('用户名','username','text','required minlength="3" maxlength="32" pattern="[a-zA-Z0-9][a-zA-Z0-9_.-]{2,31}" autocomplete="username"'):''}${kind!=='email_change'?passwordField('新密码（12—128 个字符）'):''}<button class="primary">确认完成</button></form>`);options.redemption={kind,token};}
-  async function submit(event){const form=event.target.closest('[data-security-form]');if(!form)return;event.preventDefault();const data=Object.fromEntries(new FormData(form)),button=form.querySelector('button[type=submit],button:not([type])');if(button?.disabled)return;if(button)button.disabled=true;tell('正在验证…');
+  async function submit(event){const form=event.target.closest('[data-security-form]');if(!form)return;event.preventDefault();const data=Object.fromEntries(new FormData(form)),button=form.querySelector('button[type=submit],button:not([type])');if(button?.disabled)return;if(button){button.disabled=true;button.ariaBusy='true';}tell(form.dataset.securityForm==='email-send'?'正在发送…':'正在验证…');
    try{switch(form.dataset.securityForm){
     case 'password':await stage(await api('/auth/password',data));break;
     case 'email-send':await api('/auth/otp',data);tell('若此邮箱已获邀请，将收到验证码。');break;
@@ -68,7 +68,7 @@
     case 'change-password':await api('/api/v1/account/password',data);form.reset();await refresh();tell('密码已更新，当前设备保留。其他设备的网站访问已撤销，认证服务的退出正在处理。');break;
     case 'invite':{const result=await api('/api/v1/admin/invitations',data);await refresh();tell('邀请已创建，安全邮件待发送。到期：'+new Date(result.expiresAt).toLocaleString());break;}
     case 'email-change':await api('/api/v1/admin/members/'+data.memberId+'/email',{email:data.email});form.reset();tell('新邮箱验证申请已创建，安全邮件待发送。');break;
-   }}catch(error){tell(error.message);}finally{form.querySelectorAll('input[type=password],input[autocomplete=one-time-code]').forEach(input=>input.value='');if(button)button.disabled=false;}
+   }}catch(error){tell(error.message);}finally{form.querySelectorAll('input[type=password],input[autocomplete=one-time-code]').forEach(input=>input.value='');if(button){button.disabled=false;button.ariaBusy=null;}}
   }
   async function click(event){const button=event.target.closest('button');if(!button)return;
    if(button.dataset.securityAction){({login,'email-login':emailLogin,reset,retry:refresh})[button.dataset.securityAction]?.();return;}

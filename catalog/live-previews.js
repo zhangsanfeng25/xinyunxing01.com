@@ -49,32 +49,37 @@ class LivePreviewDeck {
    if(this.frames.has(card))continue;
    if(card.dataset.previewResourceId&&this.runtime){
     const slot=document.createElement('div');slot.className='card-live-frame runtime-slot';card.querySelector('.live-preview-stage').append(slot);this.frames.set(card,slot);
+    slot.dataset.previewStatus='loading';
     card.dataset.previewStatus='loading';
     const abort=new AbortController();
     const current=()=>this.frames.get(card)===slot;
     let controller;
-    const failed=()=>{
+    const failed=reason=>{
      if(!current())return;
      this.disposers.get(card)?.();this.disposers.delete(card);this.frames.delete(card);
      this.failedCards.add(card);card.classList.remove('is-live');card.dataset.previewStatus='failed';
+     slot.dataset.previewStatus='failed';
+     const notice=document.createElement('div');notice.className='runtime-fallback';
+     const message=document.createElement('p');message.setAttribute('role','status');message.textContent=reason;
      const button=document.createElement('button');
-     button.type='button';button.className='secondary runtime-fallback';button.textContent='预览加载失败，点击查看';
-     button.dataset.open=card.dataset.previewKey;
-     slot.replaceChildren(button);
+     button.type='button';button.className='secondary';button.textContent='重试';
+     button.setAttribute('aria-label','重试'+card.dataset.previewTitle+'预览');
+     button.addEventListener('click',()=>{card.closest?.('.interactive-card')?.querySelector('.card-info')?.focus();this.reset(card);});
+     notice.append(message,button);slot.replaceChildren(notice);
      document.body.dataset.activeCardPreviews=String(this.frames.size);
      this.schedule();
     };
-    const timer=setTimeout(failed,5000);
+    const timer=setTimeout(()=>failed('预览未能在 5 秒内启动'),5000);
     this.disposers.set(card,()=>{clearTimeout(timer);abort.abort();controller?.destroy();});
     this.runtime(card,slot,status=>{
      if(!current())return;
-     if(status.status==='running'){clearTimeout(timer);card.classList.add('is-live');card.dataset.previewStatus='running';}
-     if(status.status==='failed')failed();
+     if(status.status==='running'){clearTimeout(timer);slot.dataset.previewStatus='running';card.classList.add('is-live');card.dataset.previewStatus='running';}
+     if(status.status==='failed')failed(status.error||'组件运行失败');
     },current,abort.signal).then(result=>{
      if(!current())result?.destroy();else controller=result;
     }).catch(error=>{
      if(!current()||abort.signal.aborted)return;
-     failed();
+     failed(error.name==='TimeoutError'?'预览请求超时':error.message||'无法请求交互预览');
      if(error.status===401||error.code==='ACCOUNT_UNAVAILABLE')this.onError(error);
     });continue;
    }
