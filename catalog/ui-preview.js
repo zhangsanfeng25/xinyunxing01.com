@@ -14,18 +14,18 @@
    if(dead||status==='failed'||event.source!==source||event.origin!=='null')return false;const data=event.data;
    if(!data||typeof data!=='object'||Array.isArray(data)||Object.keys(data).some(k=>!['type','channel','state','message'].includes(k))||data.type!=='ui-runtime'||data.channel!==channel||!['ready','pulse','error'].includes(data.state)||data.message!==undefined&&(typeof data.message!=='string'||data.message.length>1000))return false;
    if(data.state==='error'){fail('runtime',data.message||'组件运行失败');return true;}if(data.state==='pulse'&&status!=='running')return false;last=now();if(data.state==='ready'&&status==='loading')emit('running');return true;
-  },poll(){if(dead||status==='failed')return;const elapsed=now()-last;if(status==='loading'&&elapsed>15000)fail('load-timeout','组件未能在15秒内启动');else if(status==='running'&&elapsed>4000)fail('heartbeat','组件没有响应，已停止预览');},fail,destroy(){if(dead)return;dead=true;status='destroyed';}};
+  },resume(){last=now();},poll(){if(dead||status==='failed')return;const elapsed=now()-last;if(status==='loading'&&elapsed>15000)fail('load-timeout','组件未能在15秒内启动');else if(status==='running'&&elapsed>4000)fail('heartbeat','组件没有响应，已停止预览');},fail,destroy(){if(dead)return;dead=true;status='destroyed';}};
  }
  function mountUIRuntime({root,url,runtimeOrigin,channel,title='组件交互预览',onStatus=()=>{}}){
   const safe=validateUIRuntimeURL(url,{appOrigin:location.origin,runtimeOrigin});let dead=false,loads=0;
   const frame=document.createElement('iframe');frame.title=title;frame.className='ui-runtime-frame';frame.setAttribute('sandbox','allow-scripts');frame.referrerPolicy='no-referrer';frame.allow="camera 'none'; microphone 'none'; geolocation 'none'; clipboard-read 'none'; clipboard-write 'none'; fullscreen 'none'; payment 'none'; usb 'none'";
   // Bind the exact WindowProxy after insertion; no authority comes from message payloads.
-  let active,timer,message,hidden;frame.src=safe;
+  let active,timer,message,visibility;frame.src=safe;
   frame.addEventListener('load',()=>{if(++loads>1)active.fail('navigation','组件离开了预览入口，已停止运行');});root.replaceChildren(frame);
-  active=createUIRuntimeMonitor({source:frame.contentWindow,channel,onStatus:state=>{root.dataset.previewStatus=state.status;if(state.status==='failed'){frame.remove();clearInterval(timer);window.removeEventListener('message',message);document.removeEventListener('visibilitychange',hidden);}onStatus(state);}});
-  message=event=>active.receive(event);window.addEventListener('message',message);timer=setInterval(()=>active.poll(),500);
-  hidden=()=>{if(document.hidden)active.fail('hidden','页面已离开，预览已停止，可重置后继续');};document.addEventListener('visibilitychange',hidden);hidden();
-  return {get status(){return active.status;},destroy(){if(dead)return;dead=true;clearInterval(timer);window.removeEventListener('message',message);document.removeEventListener('visibilitychange',hidden);active.destroy();frame.remove();root.dataset.previewStatus='stopped';}};
+  active=createUIRuntimeMonitor({source:frame.contentWindow,channel,onStatus:state=>{root.dataset.previewStatus=state.status;if(state.status==='failed'){frame.remove();clearInterval(timer);window.removeEventListener('message',message);document.removeEventListener('visibilitychange',visibility);}onStatus(state);}});
+  message=event=>active.receive(event);window.addEventListener('message',message);timer=setInterval(()=>{if(!document.hidden)active.poll();},500);
+  visibility=()=>{if(!document.hidden)active.resume();};document.addEventListener('visibilitychange',visibility);
+  return {get status(){return active.status;},destroy(){if(dead)return;dead=true;clearInterval(timer);window.removeEventListener('message',message);document.removeEventListener('visibilitychange',visibility);active.destroy();frame.remove();root.dataset.previewStatus='stopped';}};
  }
  Object.assign(window,{createUIRuntimeMonitor,validateUIRuntimeURL,mountUIRuntime});
 })();

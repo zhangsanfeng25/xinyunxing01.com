@@ -16,7 +16,7 @@
   const currentKind=current?.resourceKind??current?._publicationKind??(current?.url?'website':null);if(currentKind&&currentKind!==form.kind)throw new Error('已创建资源不能更换类型，请重新添加');
   let staged=current;
   if(files.length&&(!staged||form.visibility==='private'&&staged.visibility!=='private')){const status=staged?.resourceStatus??'draft';staged={...await client.saveResource(form.kind,staged?.id,catalogPayload(form,staged,status)),_publicationKind:form.kind,resourceStatus:status,visibility:form.visibility};onStaged(staged);}
-  for(const job of files){if(job.saved)continue;job.model??=upload({file:job.file,target:{kind:form.kind,id:staged.id},client,onProgress:value=>{job.progress=value;onProgress(job,value);}});const result=await job.model.run();if(result.previousVersion!==staged.version)throw Object.assign(new Error('资源已被修改，请重新载入后核对'),{status:409});job.saved=true;staged={...staged,version:result.version};onStaged(staged);}
+  for(const job of files){if(job.saved)continue;job.model??=upload({file:job.file,target:{kind:form.kind,id:staged.id},client,onProgress:value=>{job.progress=value;onProgress(job,value);}});let result;try{result=await job.model.run();}catch(error){if(![502,503,504].includes(error.status)&&!['TimeoutError','TypeError'].includes(error.name))throw error;result=await job.model.run();}if(result.previousVersion!==staged.version)throw Object.assign(new Error('资源已被修改，请重新载入后核对'),{status:409});job.saved=true;staged={...staged,version:result.version};onStaged(staged);}
   return client.saveResource(form.kind,staged?.id,catalogPayload(form,staged,'published'));
  }
  function renderCatalogEditor({form:f,categories,editing=false}){

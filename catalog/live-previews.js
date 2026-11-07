@@ -6,7 +6,7 @@ class LivePreviewDeck {
   this.observer=new IntersectionObserver(()=>this.schedule(),{threshold:[0,.1,.3,.6,1]});
   // IntersectionObserver handles viewport crossings without work on every scroll pixel.
   window.addEventListener('resize',()=>this.schedule(),{passive:true});
-  document.addEventListener('visibilitychange',()=>{if(document.hidden){this.cancelScheduled();this.update();}else this.schedule();});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)this.cancelScheduled();else this.schedule();});
  }
  limit(){return matchMedia('(max-width:760px)').matches?1:3;}
  refresh(root){
@@ -25,7 +25,7 @@ class LivePreviewDeck {
  }
  cancelScheduled(){if(this.raf){cancelAnimationFrame(this.raf);this.raf=0;}}
  schedule(){if(document.hidden||this.paused)return;if(!this.raf)this.raf=requestAnimationFrame(()=>{this.raf=0;this.update();});}
- suspend(){this.paused=true;this.cancelScheduled();this.update();}
+ suspend(){this.paused=true;this.cancelScheduled();for(const card of this.frames.keys())this.release(card);document.body.dataset.activeCardPreviews='0';}
  resume(){this.paused=false;this.schedule();}
  release(card){
   this.disposers.get(card)?.();this.disposers.delete(card);
@@ -35,11 +35,11 @@ class LivePreviewDeck {
  reset(card){if(!card)return;this.failedCards.delete(card);this.release(card);card.querySelector('.runtime-slot')?.remove();this.preferred=card;this.schedule();}
  update(){
   const limit=this.limit();document.body.dataset.previewLimit=String(limit);
-  const blocked=this.paused||document.hidden||document.querySelector('dialog[open]');
+  if(this.paused||document.hidden||document.querySelector('dialog[open]'))return;
   const header=document.querySelector('.site-header')?.getBoundingClientRect().bottom||0;
   const bottom=innerHeight-(matchMedia('(max-width:760px)').matches?64:0);
   const focused=document.activeElement;
-  const candidates=blocked?[]:this.cards.filter(card=>card.isConnected&&!this.failedCards.has(card)).map(card=>{
+  const candidates=this.cards.filter(card=>card.isConnected&&!this.failedCards.has(card)).map(card=>{
    const r=card.getBoundingClientRect();const visible=Math.max(0,Math.min(r.bottom,bottom)-Math.max(r.top,header));
    const frame=this.frames.get(card);return {card,active:this.frames.has(card),ratio:visible/r.height,distance:Math.abs((r.top+r.bottom)/2-(header+bottom)/2),focused:frame===focused||!!frame?.contains?.(focused)};
   }).filter(x=>x.ratio>=(x.active ? .1 : .25)).sort((a,b)=>Number(b.focused)-Number(a.focused)||Number(b.card===this.preferred)-Number(a.card===this.preferred)||Number(b.active)-Number(a.active)||b.ratio-a.ratio||a.distance-b.distance);
