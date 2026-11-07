@@ -15,13 +15,34 @@
   return {get state(){return {...state};},select,next:()=>select(Math.min(sources.length-1,state.index+1)),previous:()=>select(Math.max(0,state.index-1)),retry(){if(dead)return;const index=state.index;release();return select(index);},fail(error){if(dead||!state.src)return;generation++;release();state.error=error.message;draw();onError(error);},swipe(dx,dy){if(dead||state.zoom!==1||Math.abs(dx)<48||Math.abs(dx)<=Math.abs(dy)*1.3)return;return select(Math.max(0,Math.min(sources.length-1,state.index+(dx<0?1:-1))));},toggleZoom(){if(dead||!state.src)return;state.zoom=state.zoom===1?2:1;draw();},destroy(){if(dead)return;dead=true;generation++;release();state.loading=false;state.error=null;state.zoom=1;draw();}};
  }
  let sequence=0;
+ async function loadGalleryImage(url,load){
+  const signal=AbortSignal.timeout(10000),image=new Image();
+  let asset,timedOut=false,abort;
+  const timeout=new Promise((_,reject)=>{
+   abort=()=>{timedOut=true;image.removeAttribute('src');reject(new Error('图片加载超时，请重试。'));};
+   signal.addEventListener('abort',abort,{once:true});
+  });
+  const decoded=(async()=>{
+   const result=await load(url,signal);
+   if(timedOut){result.revoke?.();return;}
+   asset=result;image.src=result.src;
+   await image.decode();
+   return result;
+  })();
+  try{return await Promise.race([decoded,timeout]);}
+  catch(error){
+   asset?.revoke?.();
+   if(error.name==='EncodingError')throw new Error('图片暂时无法显示，请重试。');
+   throw error;
+  }finally{signal.removeEventListener('abort',abort);}
+ }
  function mountCatalogGallery({root,urls,title,load,onError=()=>{}}){
   const id='catalog-lightbox-'+(++sequence),viewer=document.createElement('dialog');viewer.className='catalog-lightbox';viewer.setAttribute('aria-labelledby',id+'-title');
   root.classList.add('catalog-gallery');root.innerHTML='<button type="button" class="gallery-open" data-gallery-open aria-label="放大查看'+esc(title)+'"><img data-gallery-image alt="'+esc(title)+'" hidden></button><p data-gallery-status role="status"></p><div class="gallery-toolbar"><button type="button" class="secondary" data-gallery-previous aria-label="上一张图片">上一张</button><span data-gallery-count></span><button type="button" class="secondary" data-gallery-next aria-label="下一张图片">下一张</button></div>';
   viewer.innerHTML='<div class="dialog-head"><h2 id="'+id+'-title">'+esc(title)+'</h2><button type="button" class="secondary" data-gallery-close>关闭图片</button></div><div class="gallery-image-pane" tabindex="0" aria-label="图片查看区"><img data-gallery-image alt="'+esc(title)+'" hidden><p data-gallery-status role="status"></p></div><div class="gallery-toolbar"><button type="button" class="secondary" data-gallery-previous aria-label="上一张图片">上一张</button><span data-gallery-count></span><button type="button" class="secondary" data-gallery-next aria-label="下一张图片">下一张</button><button type="button" class="secondary" data-gallery-zoom>放大至200%</button><button type="button" class="secondary" data-gallery-fullscreen>浏览器全屏</button></div>';
   document.body.append(viewer);let dead=false,trigger=null,touch=null;
   const pages='<div class="gallery-pages" aria-label="选择图片">'+urls.map((_,i)=>'<button type="button" data-gallery-select="'+i+'" aria-label="查看第'+(i+1)+'张图片">'+(i+1)+'</button>').join('')+'</div>';for(const scope of [root,viewer])scope.querySelector('.gallery-toolbar').insertAdjacentHTML('beforebegin',pages);
-  const model=createCatalogGalleryModel({urls,load,onError,render(state){
+  const model=createCatalogGalleryModel({urls,load:url=>loadGalleryImage(url,load),onError,render(state){
    for(const scope of [root,viewer]){const image=scope.querySelector('[data-gallery-image]');if(state.src){if(image.getAttribute('src')!==state.src)image.src=state.src;image.hidden=false;}else{image.removeAttribute('src');image.hidden=true;}scope.querySelector('[data-gallery-status]').textContent=state.loading?'正在载入图片…':state.error||'';scope.querySelector('[data-gallery-count]').textContent=(state.index+1)+' / '+state.count;scope.querySelector('[data-gallery-previous]').disabled=state.index<=0;scope.querySelector('[data-gallery-next]').disabled=state.index>=state.count-1;scope.querySelector('[data-gallery-previous]').hidden=state.count<2;scope.querySelector('[data-gallery-next]').hidden=state.count<2;scope.querySelector('[data-gallery-count]').hidden=state.count<2;scope.querySelector('.gallery-pages').hidden=state.count<2||scope===viewer;for(const button of scope.querySelectorAll('[data-gallery-select]'))button.setAttribute('aria-pressed',String(Number(button.dataset.gallerySelect)===state.index));}
    for(const scope of [root,viewer]){let retry=scope.querySelector('[data-gallery-retry]');if(!retry){retry=document.createElement('button');retry.type='button';retry.className='secondary';retry.dataset.galleryRetry='';retry.textContent='重试图片';scope.querySelector('.gallery-toolbar').append(retry);}retry.hidden=!state.error;}
    root.querySelector('.gallery-toolbar').hidden=!state.error;root.querySelector('[data-gallery-open]').disabled=!state.src;viewer.classList.toggle('gallery-zoomed',state.zoom===2);viewer.querySelector('[data-gallery-zoom]').textContent=state.zoom===1?'放大至200%':'适应窗口';viewer.querySelector('[data-gallery-zoom]').disabled=!state.src;

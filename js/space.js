@@ -612,7 +612,7 @@
     restoringSession=true;
     const sendDisabled=$('send-code').disabled,enterDisabled=$('enter-space').disabled;
     $('send-code').disabled=true;$('enter-space').disabled=true;
-    $('session-retry').hidden=true;$('login-message').textContent='正在恢复本设备的登录…';
+    $('session-retry').hidden=true;$('login-message').textContent='';delete $('login-message').dataset?.state;
     try{
       for(let attempt=0;attempt<3;attempt++){
         if(epoch!==requestEpoch||!sessionRestoreNeeded)return;
@@ -623,7 +623,7 @@
           if(attempt<2)await new Promise(resolve=>setTimeout(resolve,1500*(attempt+1)));
         }
       }
-      $('session-retry').hidden=false;$('login-message').textContent='连接暂不可用，已保留本设备的登录凭据；可重试恢复，无需重新申请验证码。';
+      $('session-retry').hidden=false;$('login-message').textContent='暂时无法连接网站。你可以重试，或继续登录。';
     }finally{restoringSession=false;$('send-code').disabled=sendDisabled;$('enter-space').disabled=enterDisabled;}
   }
   $('session-retry').addEventListener('click',()=>restoreSession());

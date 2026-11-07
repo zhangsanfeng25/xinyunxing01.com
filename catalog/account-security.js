@@ -8,8 +8,8 @@
   const acquire=()=>new Promise((resolve,reject)=>{const tx=db.transaction('locks','readwrite'),store=tx.objectStore('locks'),r=store.get('access');let held=false;r.onsuccess=()=>{if(!r.result||r.result.until<=Date.now()){store.put({owner,until:Date.now()+90000},'access');held=true;}};tx.oncomplete=()=>resolve(held);tx.onerror=()=>reject(tx.error);});
   let held=false;try{for(let n=0;n<20&&!held;n++){held=await acquire();if(!held)await new Promise(resolve=>setTimeout(resolve,250));}if(!held)throw new Error('其他标签页正在处理登录，请稍后重试。');return await callback();}finally{if(held)await new Promise(resolve=>{const tx=db.transaction('locks','readwrite'),store=tx.objectStore('locks'),r=store.get('access');r.onsuccess=()=>{if(r.result?.owner===owner)store.delete('access');};tx.oncomplete=resolve;tx.onerror=resolve;});db.close();}
  }
- async function rawApi(path,body,method=body===undefined?'GET':'POST'){
-  let response,data;try{response=await fetch(path,{method,credentials:'same-origin',cache:'no-store',headers:body===undefined?{}:{'Content-Type':'application/json','X-Forum-CSRF':'1'},...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(20000)});data=await response.json();}
+ async function rawApi(path,body,method=body===undefined?'GET':'POST',options={}){
+  let response,data;try{response=await fetch(path,{method,credentials:'same-origin',cache:'no-store',headers:body===undefined?{}:{'Content-Type':'application/json','X-Forum-CSRF':'1'},...(body===undefined?{}:{body:JSON.stringify(body)}),signal:options.signal??AbortSignal.timeout(20000)});data=await response.json();}
   catch{throw new Error('账户服务暂时无法连接，请稍后重试。');}
   if(!response.ok)throw Object.assign(new Error(data.error??'操作未完成'),{status:response.status,code:data.code});return data;
  }
@@ -19,8 +19,8 @@
  const message='<p data-security-message role="status" aria-live="polite"></p>';
  function mount(container,options={}){
   const requestAccount=options.request;
-  const api=(path,body,method)=>requestAccount&&path.startsWith('/api/')?requestAccount(path,body,method):(['/auth/password','/auth/verify'].includes(path)?withIdentityLock(()=>rawApi(path,body,method)):rawApi(path,body,method));
-  let alive=true,mode='login',factorId=null;const valid=()=>alive&&container.isConnected;
+  const api=(path,body,method,requestOptions)=>requestAccount&&path.startsWith('/api/')?requestAccount(path,body,method,requestOptions):(['/auth/password','/auth/verify'].includes(path)?withIdentityLock(()=>rawApi(path,body,method)):rawApi(path,body,method,requestOptions));
+  let alive=true,mode='login',factorId=null,refreshController;const valid=()=>alive&&container.isConnected;
   const tell=text=>{if(valid()){const node=container.querySelector('[data-security-message]');if(node)node.textContent=text;}};
   function show(html){if(valid())container.innerHTML=`<div class="account-security">${html}${message}</div>`;}
   function login(){mode='login';show(`<h2>成员登录</h2><p class="muted">仅受邀成员可登录。首次、新设备及连续 48 小时未访问时需要邮箱验证。</p><form data-security-form="password">${field('用户名或邮箱','account','text','required autocomplete="username" maxlength="254"')}${passwordField('密码','password','data-current-password')}<button class="primary" type="submit">登录</button></form><div class="security-actions"><button type="button" class="text-button" data-security-action="email-login">使用邮箱验证码 / 旧账号开通密码</button><button type="button" class="text-button" data-security-action="reset">忘记密码</button></div>`);const pw=container.querySelector('[name=password]');if(pw)pw.autocomplete='current-password';}
@@ -37,15 +37,21 @@
    }else if(data.stage==='authenticated'||data.member){window.broadcastForumIdentity?.('login');options.onAuthenticated?.(data.member);await refresh();tell('已完成安全登录。');}
   }
   async function refresh(){
-   show('<h2>登录与设备</h2><p>正在核对账户状态…</p>');
-   try{const session=await api('/api/v1/session');if(!valid())return;if(session.member.role==='guest'){login();return;}
-    const profile=await api('/api/v1/account/profile'),devices=await api('/api/v1/account/devices');if(!valid())return;
+   refreshController?.abort();
+   const controller=refreshController=new AbortController();
+   const current=()=>valid()&&refreshController===controller;
+   const deadline=AbortSignal.any([controller.signal,AbortSignal.timeout(10000)]);
+   const read=path=>api(path,undefined,undefined,{signal:deadline});
+   show('<h2>登录与设备</h2><p role="status">正在加载设备信息…</p>');
+   try{const session=options.member?{member:options.member}:await read('/api/v1/session');if(!current())return;if(session.member.role==='guest'){login();return;}
+    const devices=await read('/api/v1/account/devices?profile=1');
+    const profile=devices.profile??await read('/api/v1/account/profile');if(!current())return;
     show(`<h2>登录与设备</h2><p class="muted">${escape(session.member.displayName)} · 最多三个有效设备。退出设备会立即撤销网站访问。</p><div class="security-devices">${devices.items.length?devices.items.map(d=>`<div class="setting-row"><div><strong>${escape(d.name||'浏览器')}${d.current?' · 当前设备':''}</strong><p>最近访问：${escape(new Date(d.lastSeenAt).toLocaleString())}</p></div><button class="secondary" type="button" data-revoke-device="${escape(d.id)}">${d.current?'退出当前设备':'退出设备'}</button></div>`).join(''):'<p>暂无有效设备。</p>'}</div><hr><h3>${profile.passwordReady?'修改密码':'开通用户名和密码'}</h3><p class="muted">修改后只保留当前设备。邮箱由管理员核实后发起变更。</p><form data-security-form="change-password">${profile.username?'':field('用户名','username','text','required minlength="3" maxlength="32" pattern="[a-zA-Z0-9][a-zA-Z0-9_.-]{2,31}" autocomplete="username"')}${profile.passwordReady?field('当前密码','currentPassword','password','required autocomplete="current-password"'):''}${passwordField('新密码（12—128 个字符）')}<button class="primary">${profile.passwordReady?'修改密码':'开通密码'}</button></form>${session.member.role==='admin'?'<hr><div data-security-admin></div>':''}`);
-    if(session.member.role==='admin')await renderAdmin();
-   }catch(error){if(!valid())return;if([401,403].includes(error.status)){login();return;}show('<h2>登录与设备</h2><p>账户服务暂不可用，尚未读取设备。</p><button type="button" class="secondary" data-security-action="retry">重新载入</button>');tell(error.message);}
+    if(session.member.role==='admin')renderAdmin(read,current).catch(()=>{if(current()){const admin=container.querySelector('[data-security-admin]');if(admin)admin.innerHTML='<p>暂时无法加载管理信息。</p><button type="button" class="secondary" data-security-action="retry">重试</button>';}});
+   }catch(error){if(!current())return;if([401,403].includes(error.status)){login();return;}show('<h2>登录与设备</h2><p>账户服务暂不可用，尚未读取设备。</p><button type="button" class="secondary" data-security-action="retry">重新载入</button>');tell(error.name==='TimeoutError'?'设备信息加载超时，请重试。':error.status===429?'账户服务暂时繁忙，请重试。':error.message);}
   }
-  async function renderAdmin(){
-   const [members,invitations]=await Promise.all([api('/api/v1/members?limit=100'),api('/api/v1/admin/invitations')]);if(!valid())return;const host=container.querySelector('[data-security-admin]');if(!host)return;
+  async function renderAdmin(read,current){
+   const [members,invitations]=await Promise.all([read('/api/v1/members?limit=100'),read('/api/v1/admin/invitations')]);if(!current())return;const host=container.querySelector('[data-security-admin]');if(!host)return;
    host.innerHTML=`<h3>邀请成员</h3><p class="muted">邀请绑定指定邮箱，24 小时内使用一次。重新邀请会撤销旧链接。</p><form data-security-form="invite">${field('受邀邮箱','email','email','required')}${field('显示名称','displayName','text','required maxlength="40"')}<button class="primary">创建邀请</button></form><div class="security-invites">${invitations.items.map(i=>`<div class="setting-row"><div><strong>${escape(i.email)}</strong><p>${i.revokedAt?'已撤销':i.state==='complete'?'已使用':Date.now()>=i.expiresAt?'已过期':'等待兑换'} · 到期 ${escape(new Date(i.expiresAt).toLocaleString())}</p></div>${!i.revokedAt&&i.state==='pending'?`<button class="secondary" type="button" data-revoke-invite="${escape(i.id)}">撤销</button>`:''}</div>`).join('')}</div><hr><h3>核实后变更成员邮箱</h3><p class="muted">请先通过既有渠道核实身份。新邮箱验证完成后，成员全部设备会退出。</p><form data-security-form="email-change"><label class="field">成员<select name="memberId" required>${members.items.map(m=>`<option value="${m.id}">${escape(m.displayName)} · ${escape(m.email)}</option>`).join('')}</select></label>${field('新邮箱','email','email','required')}<button class="secondary">发送新邮箱验证申请</button></form>`;
   }
   function reset(){show(`<h2>重置密码</h2><p class="muted">重置链接 30 分钟内有效，仅可使用一次。完成后全部设备退出。</p><form data-security-form="reset">${field('用户名或绑定邮箱','account','text','required autocomplete="username"')}<button class="primary">申请重置链接</button></form><button type="button" class="text-button" data-security-action="login">返回登录</button>`);}
@@ -74,7 +80,7 @@
   }
   container.addEventListener('submit',submit);container.addEventListener('click',click);
   if(options.redemption)redemption(options.redemption.kind,options.redemption.token);else if(options.stage)stage(options.stage).catch(error=>tell(error.message));else if(options.login)login();else refresh();
-  return {destroy(){alive=false;container.removeEventListener('submit',submit);container.removeEventListener('click',click);},refresh};
+  return {destroy(){alive=false;refreshController?.abort();container.removeEventListener('submit',submit);container.removeEventListener('click',click);},refresh};
  }
  let dialog=null,controller=null;
  function openLogin(options={}){
