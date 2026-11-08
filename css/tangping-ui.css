@@ -306,6 +306,8 @@ html:root body .ui-tooltip {
   box-shadow:var(--ui-shadow);
 }
 html[data-auth-check] .ui-tooltip { visibility:hidden!important; }
+html:root body .ui-tooltip:not([popover]) { z-index:1000; }
+html:root body .ui-tooltip[hidden] { display:none!important; }
 html:root body .ui-visually-hidden {
   position:absolute; width:1px; height:1px; padding:0; margin:-1px;
   overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0;
@@ -361,12 +363,17 @@ html:root body .ui-spinner {
 html:root body .discussion-loading { display:flex; align-items:center; gap:8px; min-height:44px; color:var(--ui-muted); }
 html:root body .detail-runtime-viewport { position:relative; }
 html:root body .detail-runtime-loading { position:absolute; inset:auto 16px 16px; display:flex; align-items:center; gap:8px; color:var(--ui-muted); font-size:13px; pointer-events:none; }
-html:root[data-theme=dark] body :is(a.text-link,button.text-link,button.text-button,[data-action=manage-categories]):not(.danger) { color:#93c5fd; }
+html:root[data-theme=dark] body :is(a.text-link,button.text-link,button.text-button,[data-action=manage-categories],.source-links a,.prompt-formatted a,.website-intro a:not(.primary,.secondary)):not(.danger) { color:#93c5fd; }
 html:root[data-theme=dark] body .live-preview-stage { background:var(--ui-canvas)!important; }
 html:root[data-theme=dark] body .live-preview-stage>.card-live-frame {
   inset:8px; width:calc(100% - 16px); height:calc(100% - 16px); border-radius:8px; overflow:hidden;
 }
 html:root[data-theme=dark] body .detail-runtime-viewport { padding:10px; background:var(--ui-canvas)!important; }
+html:root[data-theme=dark] body :is(.preview-poster,.card-live-frame,.detail-runtime-viewport iframe,#detail:not(.website-detail-dialog,.prompt-detail-dialog) .detail-media :is(iframe,img)) {
+  filter:brightness(.76) contrast(.96);
+}
+::view-transition { pointer-events:none; }
+::view-transition-group(root) { animation-duration:200ms; }
 @media(prefers-reduced-motion:no-preference) {
   html:root body :is(.site-header,.mobile-nav,.panel,.resource-card,.site-card,.compact-card) {
     transition:background-color 160ms ease,color 160ms ease,border-color 160ms ease,transform 160ms ease,box-shadow 160ms ease;

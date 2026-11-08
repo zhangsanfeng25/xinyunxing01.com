@@ -39,19 +39,48 @@ function inFolder(item,node){
  if(node.children)return node.children.some(child=>inFolder(item,child));
  return node.values.some(value=>typeof value==='number'?item.source?.bookmarkIndex===value:item.seedKey.endsWith('-'+value));
 }
-function folderCount(kind,node){return state.items.filter(x=>x.kind===kind&&inFolder(x,node)).length;}
+// Only these reviewed entries are alternate addresses for the same service.
+const websiteAliases={
+ deepseek:'deepseek','v12-bookmark-site-18':'deepseek',
+ qianwen:'qianwen','v12-bookmark-site-20':'qianwen',
+ doubao:'doubao','v12-bookmark-site-17':'doubao',
+ kimi:'kimi','v12-bookmark-site-22':'kimi'
+};
+function uniqueCatalogResources(rows,saved){
+ const result=[],slots=new Map();
+ const priority=row=>(saved?.has(row.seedKey)?2:0)+(row.seedKey?.startsWith('v12-bookmark-site-')?1:0);
+ for(const row of rows){
+  let key=null;
+  if(row.kind==='website'){
+   const alias=Object.hasOwn(websiteAliases,row.seedKey)?websiteAliases[row.seedKey]:null;
+   if(alias)key='service:'+alias;
+   else try{
+    const url=new URL(row.url);
+    if(url.protocol==='https:'||url.protocol==='http:'){
+     url.hash='';
+     key='url:'+row.title.trim().normalize('NFKC').toLowerCase()+'|'+url.href;
+    }
+   }catch{}
+  }
+  if(!key||!slots.has(key)){if(key)slots.set(key,result.length);result.push(row);continue;}
+  const slot=slots.get(key);
+  if(priority(row)>priority(result[slot]))result[slot]=row;
+ }
+ return result;
+}
+function folderCount(kind,node){return uniqueCatalogResources(state.items.filter(x=>x.kind===kind&&inFolder(x,node)),state.saved).length;}
 function categoryTree(kind){
  const all='全部'+label(kind),selected=state.folder;
  const visible=node=>kind!=='prompt'||node.key===selected||folderCount(kind,node)>0;
  return `<div class="catalog-tree"><div class="tree-title">${icon(kind==='website'?'globe':kind==='ui'?'layout-grid':'message-square')}<span>${label(kind)}分类</span></div>${state.backendMode&&state.role==='admin'?'<button class="text-button" data-action="manage-categories">管理分类</button>':''}<button class="tree-item tree-all ${selected==='all'?'active':''}" data-folder="all" aria-pressed="${selected==='all'}"><span>${all}</span><small>${folderCount(kind)}</small></button>${catalogTree(kind).filter(visible).map(g=>`<div class="tree-group"><div class="tree-group-head"><button class="tree-item ${selected===g.key?'active':''}" data-folder="${g.key}" aria-pressed="${selected===g.key}"><span>${esc(g.title)}</span><small>${folderCount(kind,g)}</small></button>${g.children.length?`<button class="tree-expand" data-expand="${g.key}" aria-label="展开或收起${esc(g.title)}子分类" aria-expanded="${!state.collapsedGroups.has(g.key)}" aria-controls="branch-${g.key}">${icon('chevron-down')}</button>`:``}</div><div id="branch-${g.key}" class="tree-children" ${state.collapsedGroups.has(g.key)?'hidden inert':''}>${g.children.filter(visible).map(c=>`<button class="tree-item ${selected===c.key?'active':''}" data-folder="${c.key}" aria-pressed="${selected===c.key}"><span>${esc(c.title)}</span><small>${folderCount(kind,c)}</small></button>`).join('')}</div></div>`).join('')}${folderCount(kind,folderNode(kind,'uncategorized'))?`<button class="tree-item ${selected==='uncategorized'?'active':''}" data-folder="uncategorized"><span>未分类</span><small>${folderCount(kind,folderNode(kind,'uncategorized'))}</small></button>`:''}</div>`;
 }
-function siteLogo(item){return `<span class="site-logo"><img data-site-logo src="${esc(item.logo||'assets/icons/globe.svg')}" alt="" decoding="async" ${state.route==='home'?'fetchpriority="high"':'loading="lazy"'}><span class="logo-fallback" aria-hidden="true">${icon('globe')}</span></span>`;}
+function siteLogo(item){return `<span class="site-logo">${item.logo?'<img data-site-logo src="'+esc(item.logo)+'" alt="" decoding="async">':''}<span class="logo-fallback" aria-hidden="true">${icon('globe')}</span></span>`;}
 function websiteCard(item){return `<article class="site-card"><button class="site-main" data-open="${esc(item.seedKey)}" aria-label="查看${esc(item.title)}详情">${siteLogo(item)}<span class="site-copy"><strong>${esc(item.title)}</strong><small>${esc(item.description)}</small><span class="site-tags">${badge('website')}${item.linkStatus&&item.linkStatus!=='normal'?`<span class="link-state">${item.linkStatus==='invalid'?'链接失效':'链接待核实'}</span>`:''}<span>${esc(item.category)}</span></span></span></button><div class="site-actions"><button class="save-btn ${state.saved.has(item.seedKey)?'saved':''}" data-save="${esc(item.seedKey)}" aria-label="${state.saved.has(item.seedKey)?'取消收藏':'收藏'}${esc(item.title)}" aria-pressed="${state.saved.has(item.seedKey)}">${icon('bookmark')}</button><a class="icon-btn" href="${esc(item.url)}" target="_blank" rel="noopener noreferrer" aria-label="访问${esc(item.title)}网站">${icon('external-link')}</a></div></article>`;}
 function previewCard(item){return `<article class="resource-card interactive-card"><div class="live-preview" data-live-preview ${item.hasRuntime?'data-preview-resource-id="'+esc(item.id)+'"':'data-preview-src="'+esc(item.sample)+'"'} data-preview-title="${esc(item.title)}" data-preview-key="${esc(item.seedKey)}"><div class="live-preview-stage" style="background:${esc(item.defaultBackground||item.preview?.background||'var(--canvas)')}">${item.thumbnail||item.cover?cardImage(item.thumbnail||item.cover,item.title,'preview-poster'):'<div class="preview-poster preview-placeholder">组件预览</div>'}</div></div><div class="card-body"><button class="card-info" data-open="${esc(item.seedKey)}" aria-label="查看${esc(item.title)}详情"><span class="card-info-title">${esc(item.title)}</span><span class="card-description">${esc(item.description)}</span>${badge('ui')}</button><button type="button" class="preview-reset secondary" data-reset-preview aria-label="重置${esc(item.title)}预览">重置</button><button class="save-btn ${state.saved.has(item.seedKey)?'saved':''}" data-save="${esc(item.seedKey)}" aria-label="${state.saved.has(item.seedKey)?'取消收藏':'收藏'}${esc(item.title)}" aria-pressed="${state.saved.has(item.seedKey)}">${icon('bookmark')}</button></div></article>`;}
 function catalogResults(kind,items){
  if(!items.length)return empty(kind==='prompt'&&!state.listQuery?'还没有提示词':'没有找到匹配的资源','',kind==='prompt'&&!state.listQuery?'<a href="#/add/prompt" class="primary">添加第一条提示词</a>':'<button class="secondary" data-action="clear-filters">清除筛选</button>');
  const node=folderNode(kind,state.folder),groups=state.folder==='all'?catalogTree(kind):node?.children;
- if(groups?.length){const sections=groups.map(g=>{const values=items.filter(x=>inFolder(x,g));return values.length?`<section class="directory-group"><div class="section-heading"><h2>${esc(g.title)} <span class="group-count">${values.length}</span></h2><button class="text-button" data-folder="${g.key}">查看分类</button></div><div class="${kind==='website'?'website-grid':'cards-grid'}">${values.map(x=>card(x)).join('')}</div></section>`:'';}).join('');const ungrouped=items.filter(x=>!groups.some(g=>inFolder(x,g)));return sections+(ungrouped.length?`<section class="directory-group"><div class="section-heading"><h2>${esc(node?.title||'未分类')} <span class="group-count">${ungrouped.length}</span></h2></div><div class="${kind==='website'?'website-grid':'cards-grid'}">${ungrouped.map(x=>card(x)).join('')}</div></section>`:'');}
+ if(groups?.length){const sections=groups.map(g=>{const values=items.filter(x=>inFolder(x,g));return values.length?`<section class="directory-group"><div class="section-heading"><h2>${esc(g.title)}</h2><button class="text-button" data-folder="${g.key}">查看分类</button></div><div class="${kind==='website'?'website-grid':'cards-grid'}">${values.map(x=>card(x)).join('')}</div></section>`:'';}).join('');const ungrouped=items.filter(x=>!groups.some(g=>inFolder(x,g)));return sections+(ungrouped.length?`<section class="directory-group"><div class="section-heading"><h2>${esc(node?.title||'未分类')}</h2></div><div class="${kind==='website'?'website-grid':'cards-grid'}">${ungrouped.map(x=>card(x)).join('')}</div></section>`:'');}
  return `<div class="${kind==='website'?'website-grid':'cards-grid'}">${items.map(x=>card(x)).join('')}</div>`;
 }
 function filtered(kind){
@@ -59,7 +88,7 @@ function filtered(kind){
  if(kind==='ui'){if(['web','app'].includes(state.platform))items=items.filter(x=>x.platform===state.platform);if(['interactive','reference'].includes(state.view))items=items.filter(x=>x.displayType===state.view);}
  if(query&&!service)items=items.filter(x=>[x.title,x.description,...x.tags].join(' ').toLowerCase().includes(query));
  if(state.sort==='name')items.sort((a,b)=>a.title.localeCompare(b.title,'zh-CN'));
- return items;
+ return uniqueCatalogResources(items,state.saved);
 }
 function paginateCatalog(kind,items,requested=1){
  const size={website:24,ui:12,prompt:20}[kind]||24;
