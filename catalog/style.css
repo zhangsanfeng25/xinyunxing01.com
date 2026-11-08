@@ -119,6 +119,12 @@ html:root body .workspace-layout>.side-menu>a:is(:hover,.active){background:var(
 .card-image-wrap .ui-thumbnail{position:relative;z-index:1}
 .card-image-loading{position:absolute;inset:0;display:grid;place-items:center;background:var(--tint);color:var(--muted);font-size:13px}
 .card-image-wrap.is-loaded .card-image-loading,.card-image-wrap.has-error img,.is-live .card-image-wrap{visibility:hidden}
+.home-section--prompts .prompt-card--media>.card-cover{height:clamp(10rem,18vw,14rem)}
+body[data-route=home] .home-section--prompts>.cards-grid:has(>.prompt-card--media:only-child){grid-template-columns:minmax(0,1fr)}
+.home-section--prompts .prompt-card--media:only-child>.card-cover{height:clamp(12rem,30vw,21rem)}
+.home-section--prompts .prompt-card--media>.card-cover :is(img,video){object-fit:contain;padding:8px}
+.prompt-card-footer{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.prompt-card-footer .text-button{min-height:40px}
 .compact-card{display:flex;align-items:center;gap:8px}
 .compact-main{min-width:0;flex:1}
 .website-tags{display:flex;flex-wrap:wrap;gap:6px;list-style:none;padding:0;margin:12px 0 0}

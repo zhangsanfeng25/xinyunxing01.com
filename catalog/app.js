@@ -124,7 +124,7 @@ function badge(kind){return `<span class="badge">${label(kind)}</span>`;}
 function empty(title,description,action=''){return `<div class="empty-state">${icon('bookmark')}<h3>${esc(title)}</h3><p>${esc(description)}</p>${action}</div>`;}
 function heading(title,description,extra=''){return `<div class="page-heading"><div><h1>${title}</h1></div>${extra}</div>`;}
 function cover(item,compact=false){
- if(item.kind==='prompt'&&!item.cover)return `<div class="no-preview">${icon('message-square')}<span>提示词</span></div>`;
+ if(item.kind==='prompt'&&!item.cover&&!item.thumbnail)return `<div class="no-preview">${icon('message-square')}<span>提示词</span></div>`;
  if(item.kind==='website')return `<div class="website-cover">${siteLogo(item)}<span>${esc(item.title)}</span></div>`;
  const source=item.cover?.startsWith('/api/v1/attachments/files/')?item.cover:item.thumbnail||item.cover;if(source&&item.coverType==='video')return `<video class="ui-thumbnail" src="${esc(source)}" muted playsinline preload="metadata" aria-label="${esc(item.title)}视频效果"></video>`;
  return source?cardImage(source,item.title):`<div class="no-preview">${icon('layout-grid')}<span>预览待补充</span></div>`;
@@ -133,9 +133,12 @@ function card(item,compact=false){
  if(item.kind==='website')return websiteCard(item);
  if(item.kind==='ui'&&(item.sample||item.hasRuntime))return previewCard(item);
  if(compact)return `<article class="compact-card"><button data-open="${esc(item.seedKey)}" class="compact-main"><img src="${esc(item.logo||'assets/icons/layout-grid.svg')}" alt="" loading="lazy"><span><strong>${esc(item.title)}</strong><small>${esc(item.description)}</small>${badge(item.kind)}</span></button><button class="save-btn ${state.saved.has(item.seedKey)?'saved':''}" data-save="${esc(item.seedKey)}" aria-pressed="${state.saved.has(item.seedKey)}" aria-label="${state.saved.has(item.seedKey)?'取消收藏':'收藏'}${esc(item.title)}">${icon('bookmark')}</button></article>`;
- return `<article class="resource-card"><button class="card-cover" style="background:${esc(item.preview?.background||'var(--canvas)')}" data-open="${esc(item.seedKey)}" aria-label="查看${esc(item.title)}">${cover(item)}<span class="cover-action">${item.kind==='ui'?'查看效果':item.kind==='prompt'?'查看内容':'查看网站'}</span></button><div class="card-body"><div class="card-title"><button data-open="${esc(item.seedKey)}">${esc(item.title)}</button><button class="save-btn ${state.saved.has(item.seedKey)?'saved':''}" data-save="${esc(item.seedKey)}" aria-label="${state.saved.has(item.seedKey)?'取消收藏':'收藏'}${esc(item.title)}" aria-pressed="${state.saved.has(item.seedKey)}">${icon('bookmark')}</button></div><p>${esc(item.description)}</p>${badge(item.kind)}</div></article>`;
+ const prompt=item.kind==='prompt';
+ const mediaClass=prompt&&(item.cover||item.thumbnail)?' prompt-card--media':'';
+ const footer=prompt?`<div class="prompt-card-footer">${badge(item.kind)}<button class="text-button" data-open="${esc(item.seedKey)}">查看内容</button></div>`:badge(item.kind);
+ return `<article class="resource-card${mediaClass}"><button class="card-cover" style="background:${esc(item.preview?.background||'var(--canvas)')}" data-open="${esc(item.seedKey)}" aria-label="查看${esc(item.title)}">${cover(item)}${prompt?'':'<span class="cover-action">查看效果</span>'}</button><div class="card-body"><div class="card-title"><button data-open="${esc(item.seedKey)}">${esc(item.title)}</button><button class="save-btn ${state.saved.has(item.seedKey)?'saved':''}" data-save="${esc(item.seedKey)}" aria-label="${state.saved.has(item.seedKey)?'取消收藏':'收藏'}${esc(item.title)}" aria-pressed="${state.saved.has(item.seedKey)}">${icon('bookmark')}</button></div><p>${esc(item.description)}</p>${footer}</div></article>`;
 }
-function section(title,content,to,compact=false){return `<section class="home-section"><div class="section-heading"><h2>${title}</h2>${to?`<a class="text-link" href="#/${to}">查看全部</a>`:''}</div>${content}</section>`;}
+function section(title,content,to){return `<section class="home-section${to==='prompts'?' home-section--prompts':''}"><div class="section-heading"><h2>${title}</h2>${to?`<a class="text-link" href="#/${to}">查看全部</a>`:''}</div>${content}</section>`;}
 function home(){
  const featuredSection=(title,rows,to,limit,compact=false)=>rows?.length?section(title,'<div class="'+(compact?'compact-grid':'cards-grid')+'">'+rows.slice(0,limit).map(item=>card(item,compact)).join('')+'</div>',to):'';
  if(state.serverHome){const h=state.serverHome;return heading('首页','')+
