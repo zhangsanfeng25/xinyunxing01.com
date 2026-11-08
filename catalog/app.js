@@ -1,19 +1,22 @@
 'use strict';
 const $=s=>document.querySelector(s);
 const displayPreferenceKey='forum-display-v03';
+const systemMotion=matchMedia('(prefers-reduced-motion: reduce)');
 function readDisplayPreference(){
  try{return JSON.parse(localStorage.getItem(displayPreferenceKey))??{};}catch{return {};}
 }
 function applyMotionPreference(enabled){
  document.body.classList.toggle('reduce-motion',!enabled);
  const control=$('#motion-toggle');
- if(control){control.checked=enabled;$('#motion-status').textContent=enabled?'已启用':'已关闭';}
+ if(control){control.checked=enabled;$('#motion-status').textContent=motionStatus(enabled);}
 }
+function motionStatus(enabled){return enabled?(systemMotion.matches?'系统已减少动画':'已启用'):'已关闭';}
 function saveMotionPreference(enabled){
  applyMotionPreference(enabled);
  try{localStorage.setItem(displayPreferenceKey,JSON.stringify({...readDisplayPreference(),motion:enabled}));}catch{}
 }
 applyMotionPreference(readDisplayPreference().motion!==false);
+systemMotion.addEventListener('change',()=>applyMotionPreference(!document.body.classList.contains('reduce-motion')));
 window.addEventListener('storage',event=>{
  if(event.key===displayPreferenceKey||event.key===null)applyMotionPreference(readDisplayPreference().motion!==false);
 });
@@ -34,7 +37,7 @@ async function loadServiceCatalog(renderPage=true){const generation=++serviceLoa
 
 function serviceLanding(error){if(error?.status===401||error?.status===403){location.replace('/login.html');return;}$('#main').innerHTML=empty('资源暂时无法载入',error?.message||'请稍后重试。','<button class="secondary" data-action="reload">重新载入</button>');}
 function serviceLogin(){location.assign('/login.html?member=1#login');}
-function applyServiceIdentity(identity){document.body.dataset.role=identity.role;if(state.actualMember&&(state.actualMember.id!==identity.id||state.actualMember.role!==identity.role)){clearSelectedFiles();state.gallery?.destroy();state.gallery=null;clearDetailRuntime();state.attachmentEditor?.destroy();state.attachmentEditor=null;state.sourceEditor?.destroy();state.sourceEditor=null;state.detailGalleryItem=null;state.items=[];state.editing=null;state.form={kind:'website',title:'',description:'',url:'',body:'',visibility:'shared'};state.saved.clear();state.drafts=[];state.serverHome=null;state.serviceSearch=null;state.serviceListSearch=null;searchGeneration++;$('#main').replaceChildren();$('#detail').replaceChildren();if($('#detail').open)$('#detail').close();}state.actualMember=identity;state.role=identity.role;$('#account-menu-button').textContent=[...identity.displayName][0];$('#account-menu p').textContent=identity.displayName+(identity.role==='guest'?' · 只读':'');$('#account-menu').innerHTML='<p>'+esc(identity.displayName)+(identity.role==='guest'?' · 只读':'')+'</p>'+(identity.role==='guest'?'<button data-action="service-login">成员登录</button>':'<a href="#/account">个人账户</a><a href="#/saved">我的收藏</a>'+(identity.role==='admin'?'<a href="#/admin">管理后台</a>':''))+'<hr><button data-action="service-leave">退出'+(identity.role==='guest'?'游客访问':'登录')+'</button>';$('.add-button').hidden=identity.role==='guest';document.querySelector('[data-action="notifications"]').hidden=identity.role==='guest';}
+function applyServiceIdentity(identity){document.body.dataset.role=identity.role;if(state.actualMember&&(state.actualMember.id!==identity.id||state.actualMember.role!==identity.role)){clearSelectedFiles();state.gallery?.destroy();state.gallery=null;clearDetailRuntime();state.attachmentEditor?.destroy();state.attachmentEditor=null;state.sourceEditor?.destroy();state.sourceEditor=null;state.detailGalleryItem=null;state.items=[];state.editing=null;state.form={kind:'website',title:'',description:'',url:'',body:'',visibility:'shared'};state.saved.clear();state.drafts=[];state.serverHome=null;state.serviceSearch=null;state.serviceListSearch=null;searchGeneration++;$('#main').replaceChildren();$('#detail').replaceChildren();if($('#detail').open)$('#detail').close();}state.actualMember=identity;state.role=identity.role;$('#account-menu-button').textContent=[...identity.displayName][0];$('#account-menu p').textContent=identity.displayName+(identity.role==='guest'?' · 只读':'');$('#account-menu').innerHTML='<p>'+esc(identity.displayName)+(identity.role==='guest'?' · 只读':'')+'</p>'+(identity.role==='guest'?'<button data-action="service-login">成员登录</button>':'<a href="#/account">个人账户</a><a href="#/saved">我的收藏</a>'+(identity.role==='admin'?'<a href="#/admin">管理后台</a>':''))+'<hr><button class="danger" data-action="service-leave">退出'+(identity.role==='guest'?'游客访问':'登录')+'</button>';$('.add-button').hidden=identity.role==='guest';document.querySelector('[data-action="notifications"]').hidden=identity.role==='guest';}
 function serviceError(error){if(error.code==='IDENTITY_CHANGED')return;if(error.code==='ACCOUNT_UNAVAILABLE'){identityEvents?.publish('permissions');return;}if(error.code==='GUEST_SESSION_EXPIRED'){catalogSession.expire();return;}if(error.status===401){clearPrivateServiceState();serviceLanding(error);return;}toast(error.message);}
 const catalogSession=state.backendMode?window.createCatalogSession({client:catalogClient,lock:window.catalogGuestLock,onIdentity:applyServiceIdentity,onExpired:()=>{state.attachmentEditor?.destroy();state.attachmentEditor=null;state.gallery?.destroy();state.gallery=null;clearDetailRuntime();liveDeck.suspend();if(!$('#guest-expiry').open)$('#guest-expiry').showModal();},onError:error=>toast(error.message)}):null;
 if(state.backendMode){const expiry=document.createElement('dialog');expiry.id='guest-expiry';expiry.className='small-dialog';expiry.setAttribute('aria-labelledby','guest-expiry-title');expiry.innerHTML='<h2 id="guest-expiry-title">访问已超时</h2><p>当前页面、搜索条件和浏览位置已保留。继续浏览需要重新申请游客名额。</p><p data-resume-message role="status"></p><div class="detail-actions"><button class="primary" data-action="service-resume">继续浏览</button><button class="secondary" data-action="service-login">成员登录</button></div>';expiry.addEventListener('cancel',event=>event.preventDefault());document.body.append(expiry);
@@ -115,7 +118,7 @@ async function removeServiceResource(){const el=$('#resource-remove'),item=state
 if(state.backendMode){const el=document.createElement('dialog');el.id='resource-remove';el.className='small-dialog';document.body.append(el);}
 state.folder='all';state.listQuery='';state.page=1;state.collapsedGroups=new Set();
 let trigger=null,toastTimer;
-function toast(text){const el=$('#toast');el.textContent=text;el.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.hidden=true,3500);}
+function toast(text){const el=$('#toast');el.textContent=text;el.hidden=false;if(el.showPopover&&!el.matches(':popover-open'))el.showPopover();clearTimeout(toastTimer);toastTimer=setTimeout(()=>{el.hidePopover?.();el.hidden=true;},3500);}
 function label(kind){return {website:'网站',ui:'UI',prompt:'提示词'}[kind];}
 function badge(kind){return `<span class="badge">${label(kind)}</span>`;}
 function empty(title,description,action=''){return `<div class="empty-state">${icon('bookmark')}<h3>${esc(title)}</h3><p>${esc(description)}</p>${action}</div>`;}
@@ -182,9 +185,9 @@ function add(){
 }
 async function loadMemberProfile(form){
  const status=form.querySelector('[data-profile-status]'),email=form.querySelector('[data-profile-email]'),retry=form.querySelector('[data-action=reload-profile]');
- retry.hidden=true;status.textContent='';
- try{const profile=await catalogClient.accountRequest('/api/v1/account/profile');if(form.isConnected){email.value=profile.email??'';email.placeholder='';}}
- catch(error){if(form.isConnected){email.placeholder='暂时无法读取';status.textContent='个人资料加载失败。';retry.hidden=false;}if(error.status===401)serviceError(error);}
+ retry.hidden=true;status.textContent='';email.placeholder='正在读取…';
+ try{const profile=await catalogClient.accountRequest('/api/v1/account/profile');if(form.isConnected){email.value=profile.email??'';email.placeholder=profile.email?'':'未提供登录邮箱';}}
+ catch(error){if(form.isConnected){email.placeholder='暂时无法读取';status.textContent=error.name==='TimeoutError'?'个人资料加载超时，请重试。':'个人资料暂时无法读取，请重试。';retry.hidden=false;}if(error.status===401)serviceError(error);}
 }
 async function saveMemberProfile(form){
  const button=form.querySelector('button[type=submit],button:not([type])'),status=form.querySelector('[data-profile-status]');
@@ -230,13 +233,7 @@ function render(){
  const sourceRoot=$('#native-source-editor');if(sourceRoot&&state.backendMode)state.sourceEditor=window.mountUISourceEditor({root:sourceRoot,initial:state.form.uiSource,onChange:value=>state.form.uiSource=value,test:catalogClient.testUI,compilerConfig:catalogClient.compilerConfig,onError:serviceError});
  const attachmentRoot=$('#catalog-attachment-editor');if(attachmentRoot&&state.backendMode&&state.editing)state.attachmentEditor=window.mountCatalogAttachments({root:attachmentRoot,target:{kind:state.form.kind,id:state.editing?.id??null},client:catalogClient,editor:true,allowUpload:false,role:state.role,version:state.editing?.data.version??null,onVersion:(previous,next)=>{if(state.editing?.data.version===previous)state.editing.data.version=next;},onSnapshot:result=>{const item=state.items.find(x=>x.kind===state.form.kind&&x.id===state.editing?.id);if(!item)return;const media=result.items.filter(x=>x.isPreview&&x.previewUrl),cover=media.find(x=>x.isCover)??media[0];item.version=result.version;item.cover=cover?.previewUrl??state.editing.data.previews?.[0]?.url??state.editing.data.coverUrl??null;item.coverType=cover?.fileKind??'image';},onError:serviceError});
  drawSelectedFiles();
- const limits=$('[data-publication-limits]');
- if(limits)catalogClient.attachmentConfig().then(({limits:values})=>{
-  if(!limits.isConnected)return;
-  state.attachmentLimits=values;
-  const size=bytes=>bytes>=1e9?(bytes/1e9)+' GB':(bytes/1e6)+' MB';
-  limits.textContent='单文件上限：图片 '+size(values.image)+'（JPG、PNG、WebP、GIF），代码与文本 '+size(values.code)+'，PDF 与 Office 文档 '+size(values.document)+'，MP4 '+size(values.video)+'，ZIP '+size(values.archive)+'。';
- }).catch(()=>{});
+ if($('[data-publication-limits]'))loadPublicationLimits();
  const profileForm=$('#member-profile-form');if(profileForm)loadMemberProfile(profileForm);
  const securityRoot=$('#account-security-root');if(securityRoot)state.securityController=window.AccountSecurity.mount(securityRoot,{member:state.actualMember,request:state.backendMode?catalogClient.accountRequest:undefined,onAuthenticated:identity=>{if(state.backendMode){loadServiceCatalog().catch(serviceError);return;}state.actualMember=identity;$('#account-menu p').textContent=identity.displayName;$('#account-menu-button').textContent=[...identity.displayName][0];}});
  document.title=`${({home:'首页',search:'搜索',websites:'网站',ui:'UI',prompts:'提示词',saved:'收藏',add:'添加资源',account:'个人账户',admin:'管理后台'})[state.route]} · 躺平万岁`;
@@ -326,7 +323,7 @@ function promptDetail(item,id){
 async function detail(id){
  if(detailPendingId===id&&$('#detail').open)return;
  let item=findCatalogItem(id);if(!item)return;const generation=++detailGeneration;trigger=document.activeElement;const el=$('#detail');state.gallery?.destroy();state.gallery=null;clearDetailRuntime();state.detailGalleryItem=null;
- if(state.backendMode){detailPendingId=id;el.classList.toggle('website-detail-dialog',item.kind==='website');el.classList.toggle('prompt-detail-dialog',item.kind==='prompt');el.innerHTML='<div class="dialog-head"><span>'+esc(item.title)+'</span><button class="icon-btn" data-close="detail" aria-label="关闭资源详情">'+icon('x')+'</button></div>'+skeleton('正在载入资源详情…','detail-loading');el.showModal();try{const data=await catalogClient.detailResource(item);if(generation!==detailGeneration||!el.open)return;item={...item,...data,kind:item.kind,title:data.title??data.name,category:data.categoryName,source:item.source,body:(data.materials??[]).find(m=>m.kind===(item.kind==='prompt'?'prompt':'code'))?.body??''};}catch(error){if(generation===detailGeneration&&el.open)el.innerHTML='<div class="dialog-head"><span>'+esc(item.title)+'</span><button class="icon-btn" data-close="detail" aria-label="关闭资源详情">'+icon('x')+'</button></div><div class="detail-loading"><p role="status">'+esc(error.message)+'</p><button class="secondary" data-open="'+esc(id)+'">重试</button></div>';serviceError(error);return;}finally{if(generation===detailGeneration)detailPendingId=null;}}
+ if(state.backendMode){liveDeck.yieldPending?.();detailPendingId=id;el.classList.toggle('website-detail-dialog',item.kind==='website');el.classList.toggle('prompt-detail-dialog',item.kind==='prompt');el.innerHTML='<div class="dialog-head"><span>'+esc(item.title)+'</span><button class="icon-btn" data-close="detail" aria-label="关闭资源详情">'+icon('x')+'</button></div>'+skeleton('正在载入资源详情…','detail-loading');el.showModal();try{const data=await catalogClient.detailResource(item);if(generation!==detailGeneration||!el.open)return;item={...item,...data,kind:item.kind,title:data.title??data.name,category:data.categoryName,source:item.source,body:(data.materials??[]).find(m=>m.kind===(item.kind==='prompt'?'prompt':'code'))?.body??''};}catch(error){if(generation===detailGeneration&&el.open)el.innerHTML='<div class="dialog-head"><span>'+esc(item.title)+'</span><button class="icon-btn" data-close="detail" aria-label="关闭资源详情">'+icon('x')+'</button></div><div class="detail-loading"><p role="status">'+esc(error.message)+'</p><button class="secondary" data-open="'+esc(id)+'">重试</button></div>';serviceError(error);return;}finally{if(generation===detailGeneration)detailPendingId=null;}}
  el.innerHTML=`<div class="dialog-head"><span>${label(item.kind)}详情</span><button class="icon-btn" data-close="detail" aria-label="关闭资源详情">${icon('x')}</button></div><div class="detail-content"><div class="detail-media">${item.sample?`<iframe src="${esc(item.sample)}" sandbox title="${esc(item.title)}交互预览"></iframe>`:cover(item)}</div><div class="detail-info"><div>${badge(item.kind)}<h2 id="detail-title">${esc(item.title)}</h2></div><div class="detail-actions">${item.kind==='website'?`<a class="primary" href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">访问网站 ${icon('external-link')}</a>`:''}<button class="secondary" data-save="${esc(id)}">${icon('bookmark')}${state.saved.has(id)?'取消收藏':'收藏资源'}</button></div><dl class="resource-meta"><div><dt>分类</dt><dd>${esc(item.category)}</dd></div><div><dt>来源</dt><dd>${item.kind==='website'?'你的收藏夹':esc(item.source.author||item.source.repository||item.authorName||'成员维护')}</dd></div>${item.source.licenseFile?'<div><dt>许可</dt><dd>MIT</dd></div>':''}</dl>${item.source.licenseFile?`<div class="source-links"><a class="text-link" href="${esc(item.source.url)}" target="_blank" rel="noopener noreferrer">上游来源 ${icon('external-link')}</a><a class="text-link" href="assets/licenses/${item.source.licenseFile.split('/').pop()}" target="_blank">查看许可</a></div>`:''}</div></div><section class="detail-section" data-detail-discussion><h3>评论与反馈</h3><p class="muted">评论功能接入后，可以在这里交流使用体验。</p></section>`;
  if(item.kind==='prompt')el.innerHTML=promptDetail(item,id);
  el.classList.toggle('website-detail-dialog',item.kind==='website');el.classList.toggle('prompt-detail-dialog',item.kind==='prompt');
@@ -374,16 +371,33 @@ document.addEventListener('click',event=>{
 });
 document.addEventListener('click',event=>{if(!event.target.closest('.profile-wrap')){$('#account-menu').hidden=true;$('#account-menu-button').setAttribute('aria-expanded','false');}});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'){$('#account-menu').hidden=true;$('#account-menu-button').setAttribute('aria-expanded','false');}});
-document.addEventListener('input',event=>{const el=event.target;if(el.matches('[data-editor-category-search]')){const select=$('[data-editor-category]');select.innerHTML=window.catalogCategoryOptions(state.categories?.[state.form.kind]??[],select.value,el.value);return;}if(el.id==='list-search'){state.listQuery=el.value;if(state.backendMode)queueServiceSearch('list');state.page=1;history.replaceState(null,'',catalogHash());const kind={websites:'website',ui:'ui',prompts:'prompt'}[state.route];const items=filtered(kind);$('#listing-results').innerHTML=catalogPageResults(kind,items);$('#result-count').textContent=catalogCount(paginateCatalog(kind,items,state.page));liveDeck.refresh($('#main'));return;}if(el.id==='global-search'){state.query=el.value;if(state.backendMode)queueServiceSearch('global');const hash='/search'+(state.query.trim()?'?q='+encodeURIComponent(state.query.trim()):'');if(state.route!=='search'){location.hash=hash;}else{history.replaceState(null,'','#'+hash);render();}}if(el.closest('#resource-form')&&el.name)state.form[el.name]=el.value;});
+document.addEventListener('input',event=>{const el=event.target;if(el.matches('[data-editor-category-search]')){const select=$('[data-editor-category]');select.innerHTML=window.catalogCategoryOptions(state.categories?.[state.form.kind]??[],select.value,el.value,state.form.kind);return;}if(el.id==='list-search'){state.listQuery=el.value;if(state.backendMode)queueServiceSearch('list');state.page=1;history.replaceState(null,'',catalogHash());const kind={websites:'website',ui:'ui',prompts:'prompt'}[state.route];const items=filtered(kind);$('#listing-results').innerHTML=catalogPageResults(kind,items);$('#result-count').textContent=catalogCount(paginateCatalog(kind,items,state.page));liveDeck.refresh($('#main'));return;}if(el.id==='global-search'){state.query=el.value;if(state.backendMode)queueServiceSearch('global');const hash='/search'+(state.query.trim()?'?q='+encodeURIComponent(state.query.trim()):'');if(state.route!=='search'){location.hash=hash;}else{history.replaceState(null,'','#'+hash);render();}}if(el.closest('#resource-form')&&el.name)state.form[el.name]=el.value;});
 document.addEventListener('change',event=>{const el=event.target;if(el.id==='ui-platform-filter'||el.id==='ui-type-filter'){state[el.id==='ui-platform-filter'?'platform':'view']=el.value;state.page=1;history.replaceState(null,'',catalogHash());render();}if(el.id==='sort-select'||el.id==='drawer-sort'){state.sort=el.value;state.page=1;history.replaceState(null,'',catalogHash());render();}if(el.name==='kind'&&el.closest('#resource-form')){state.form.kind=el.value;render();}if(el.id==='theme-select')theme(el.value);if(el.id==='motion-toggle')saveMotionPreference(el.checked);});
+async function loadPublicationLimits(){
+ const info=$('[data-publication-limits]'),picker=$('[data-publication-files]');
+ if(!info||!picker)return;
+ state.attachmentLimits=null;picker.disabled=true;info.textContent='正在读取站点上传限额…';
+ try{
+  const {limits}=await catalogClient.attachmentConfig();if(!info.isConnected)return;
+  state.attachmentLimits=limits;picker.disabled=false;
+  const size=bytes=>bytes>=1e9?(bytes/1e9)+' GB':bytes>=1e6?(bytes/1e6)+' MB':bytes+' 字节';
+  info.textContent='单文件上限：图片 '+size(limits.image)+'（JPG、PNG、WebP、GIF），代码与文本 '+size(limits.code)+'，PDF 与 Office 文档 '+size(limits.document)+'，MP4 '+size(limits.video)+'，ZIP '+size(limits.archive)+'。';
+ }catch(error){
+  if(!info.isConnected)return;
+  info.textContent='暂时无法读取上传限额。';
+  const retry=document.createElement('button');retry.type='button';retry.className='text-button';retry.textContent='重试';retry.addEventListener('click',loadPublicationLimits);info.append(retry);
+  if(error.status===401)serviceError(error);
+ }
+}
 function stagePublicationFiles(files){
  if(state.saving)return;
  state.selectedFiles??=[];
  const message=$('[data-editor-message]'),errors=[];
+ if(!state.attachmentLimits){if(message)message.textContent='请先读取站点上传限额。';return;}
  for(const file of files){
   try{
    const info=window.attachmentFileInfo(file);
-   const limit=state.attachmentLimits?.[info.fileKind]??{image:10000000,code:10000000,document:300000000,video:1000000000,archive:1000000000}[info.fileKind];
+   const limit=state.attachmentLimits[info.fileKind];
    if(file.size>limit)throw new Error(file.name+' 超出单文件大小限制');
    if(state.selectedFiles.some(job=>job.file.name===file.name&&job.file.size===file.size&&job.file.lastModified===file.lastModified))continue;
    state.selectedFiles.push({key:crypto.randomUUID(),file,preview:['image','video'].includes(info.fileKind)?URL.createObjectURL(file):null,fileKind:info.fileKind,saved:false});
@@ -440,3 +454,33 @@ function updateCatalogImage(image,loaded){
 }
 document.addEventListener('load',event=>updateCatalogImage(event.target,true),true);
 document.addEventListener('error',event=>updateCatalogImage(event.target,false),true);
+
+const cardMediaJobs=new Map(),cardMediaSelector='img[data-protected-card-image]';
+const cardMediaObserver=new IntersectionObserver(entries=>{
+ for(const {target,isIntersecting} of entries){
+  if(!isIntersecting||!target.isConnected||cardMediaJobs.has(target))continue;
+  cardMediaObserver.unobserve(target);
+  const job={controller:new AbortController(),url:null};cardMediaJobs.set(target,job);
+  catalogClient.image(target.dataset.protectedCardImage,{signal:job.controller.signal}).then(blob=>{
+   if(!target.isConnected||job.controller.signal.aborted)return;
+   job.url=URL.createObjectURL(blob);target.src=job.url;
+  }).catch(()=>{if(target.isConnected&&!job.controller.signal.aborted)updateCatalogImage(target,false);});
+ }
+},{rootMargin:'160px'});
+new MutationObserver(records=>{
+ for(const {addedNodes,removedNodes} of records){
+  for(const node of addedNodes){
+   if(node.matches?.(cardMediaSelector))cardMediaObserver.observe(node);
+   node.querySelectorAll?.(cardMediaSelector).forEach(image=>cardMediaObserver.observe(image));
+  }
+  for(const node of removedNodes){
+   const images=node.matches?.(cardMediaSelector)?[node]:node.querySelectorAll?.(cardMediaSelector)??[];
+   for(const image of images){
+    if(image.isConnected)continue;
+    cardMediaObserver.unobserve(image);
+    const job=cardMediaJobs.get(image);if(!job)continue;
+    job.controller.abort();if(job.url)URL.revokeObjectURL(job.url);cardMediaJobs.delete(image);
+   }
+  }
+ }
+}).observe($('#main'),{childList:true,subtree:true});

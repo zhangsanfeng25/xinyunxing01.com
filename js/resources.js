@@ -582,10 +582,12 @@
               a.href = s.url;
               a.target = "_blank";
               a.rel = "noopener noreferrer";
-              if (s.logoPath || s.logoUrl) {
-                const img = image({ url: s.logoPath || s.logoUrl }, "");
+              const fallback=el("span","home-site-initial");fallback.setAttribute("aria-hidden","true");
+              if(s.logoPath||s.logoUrl){
+                const img=image({url:s.logoPath||s.logoUrl},"");
+                img.addEventListener("error",()=>img.replaceWith(fallback),{once:true});
                 a.append(img);
-            } else a.append(el("span", "home-site-initial", [...s.name][0]));
+              }else a.append(fallback);
               a.append(el("span", "", s.name));
               a.addEventListener("click", () => {
                 request("/api/v1/websites/" + s.id + "/clicks", "POST", {}).catch(() => {

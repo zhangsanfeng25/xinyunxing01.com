@@ -65,11 +65,11 @@ html:root body :is(.primary,.publish-button,.account-security button.primary):ac
 }
 html:root body :is(.secondary,.send-code,.guest-login-button):active:not(:disabled) { background:var(--ui-soft-hover); transform:none; }
 html:root body :is(.danger,.primary.danger,.secondary.danger,[data-action=service-remove-confirm],[data-life=purge],
-  [data-empty-trash],[data-close-account],[data-security-revoke]) {
+  [data-empty-trash],[data-close-account],[data-security-revoke],[data-action=service-leave],[data-revoke-device],[data-replace-device]) {
   color:var(--ui-danger); background:var(--ui-danger-soft); border:1px solid var(--ui-danger);
 }
 html:root body :is(.danger,.primary.danger,.secondary.danger,[data-action=service-remove-confirm],[data-life=purge],
-  [data-empty-trash],[data-close-account],[data-security-revoke]):hover:not(:disabled) {
+  [data-empty-trash],[data-close-account],[data-security-revoke],[data-action=service-leave],[data-revoke-device],[data-replace-device]):hover:not(:disabled) {
   color:var(--ui-danger); background:var(--ui-danger-soft); border-color:var(--ui-danger);
   box-shadow:inset 0 0 0 1px var(--ui-danger);
 }
@@ -241,10 +241,10 @@ html:root body dialog {
   --ui-layer-time:180ms;
   --ui-closed-transform:translateY(6px) scale(.98);
 }
-html:root body :is(.detail-drawer:not(.website-detail-dialog,.prompt-detail-dialog),.category-drawer) {
+html:root body :is(.detail-drawer,.category-drawer) {
   --ui-layer-time:250ms;
 }
-html:root body .detail-drawer:not(.website-detail-dialog,.prompt-detail-dialog) { --ui-closed-transform:translateX(100%); }
+html:root body .detail-drawer { --ui-closed-transform:translateX(100%); }
 html:root body .category-drawer { --ui-closed-transform:translateX(-100%); }
 html:root body dialog:modal { animation:ui-dialog-enter var(--ui-layer-time) ease-out; }
 @supports (overlay:auto) and (transition-behavior:allow-discrete) {
@@ -340,3 +340,37 @@ html:root body :is(.personal-filters,.admin-filter)>button { align-self:end; mar
 }
 html.motion-off body dialog::backdrop,html:root body.reduce-motion dialog::backdrop { transition:none!important; }
 html.motion-off body details::details-content,html:root body.reduce-motion details::details-content { transition:none!important; }
+
+html:root body .toast[popover] { top:auto; right:auto; margin:0; pointer-events:none; }
+html[data-auth-check] .toast { visibility:hidden!important; }
+html:root body[data-route=add] .header-actions>.add-button { display:none; }
+html:root body .detail-drawer>.dialog-head { position:sticky; top:0; z-index:3; background:var(--ui-surface); }
+html:root body .ui-source-safety { white-space:normal; overflow-wrap:anywhere; color:var(--ui-ink); }
+html:root body .cards-grid:has(>.resource-card:only-child) { grid-template-columns:minmax(0,min(100%,560px)); }
+html:root body img[data-protected-card-image]:not([src]) { visibility:hidden; }
+html:root body :is(.website-initial,.home-site-initial) { display:inline-grid; place-items:center; }
+html:root body :is(.website-initial,.home-site-initial)::after {
+  content:''; width:22px; height:22px; background:var(--ui-secondary-ink);
+  mask:url('/catalog/assets/icons/globe.svg') center/contain no-repeat;
+}
+html:root body .ui-spinner {
+  display:inline-block; box-sizing:border-box; width:16px; height:16px;
+  border:2px solid currentColor; border-right-color:transparent; border-radius:50%;
+  color:var(--ui-secondary-ink); animation:ui-spin 800ms linear infinite;
+}
+html:root body .discussion-loading { display:flex; align-items:center; gap:8px; min-height:44px; color:var(--ui-muted); }
+html:root body .detail-runtime-viewport { position:relative; }
+html:root body .detail-runtime-loading { position:absolute; inset:auto 16px 16px; display:flex; align-items:center; gap:8px; color:var(--ui-muted); font-size:13px; pointer-events:none; }
+html:root[data-theme=dark] body :is(a.text-link,button.text-link,button.text-button,[data-action=manage-categories]):not(.danger) { color:#93c5fd; }
+html:root[data-theme=dark] body .live-preview-stage { background:var(--ui-canvas)!important; }
+html:root[data-theme=dark] body .live-preview-stage>.card-live-frame {
+  inset:8px; width:calc(100% - 16px); height:calc(100% - 16px); border-radius:8px; overflow:hidden;
+}
+html:root[data-theme=dark] body .detail-runtime-viewport { padding:10px; background:var(--ui-canvas)!important; }
+@media(prefers-reduced-motion:no-preference) {
+  html:root body :is(.site-header,.mobile-nav,.panel,.resource-card,.site-card,.compact-card) {
+    transition:background-color 160ms ease,color 160ms ease,border-color 160ms ease,transform 160ms ease,box-shadow 160ms ease;
+  }
+  html:root body:not(.reduce-motion) { transition:background-color 160ms ease,color 160ms ease; }
+  html.motion-off body:not(.reduce-motion) { transition:none; }
+}

@@ -27,6 +27,7 @@ class LivePreviewDeck {
  schedule(){if(document.hidden||this.paused)return;if(!this.raf)this.raf=requestAnimationFrame(()=>{this.raf=0;this.update();});}
  suspend(){this.paused=true;this.cancelScheduled();for(const card of this.frames.keys())this.release(card);document.body.dataset.activeCardPreviews='0';}
  resume(){this.paused=false;this.schedule();}
+ yieldPending(){for(const card of this.frames.keys())if(card.dataset.previewStatus==='loading')this.release(card);}
  release(card){
   this.disposers.get(card)?.();this.disposers.delete(card);
   const frame=this.frames.get(card);if(frame){document.body.dataset.previewReleases=String(Number(document.body.dataset.previewReleases||0)+1);frame.remove();this.frames.delete(card);}
@@ -69,7 +70,7 @@ class LivePreviewDeck {
      document.body.dataset.activeCardPreviews=String(this.frames.size);
      this.schedule();
     };
-    const timer=setTimeout(()=>failed('预览未能在 5 秒内启动'),5000);
+    const timer=setTimeout(()=>failed('预览启动超时，请重试。'),35000);
     this.disposers.set(card,()=>{clearTimeout(timer);abort.abort();controller?.destroy();});
     this.runtime(card,slot,status=>{
      if(!current())return;
@@ -79,7 +80,7 @@ class LivePreviewDeck {
      if(!current())result?.destroy();else controller=result;
     }).catch(error=>{
      if(!current()||abort.signal.aborted)return;
-     failed(error.name==='TimeoutError'?'预览请求超时':error.message||'无法请求交互预览');
+     failed(error.message||'无法请求交互预览');
      if(error.status===401||error.code==='ACCOUNT_UNAVAILABLE')this.onError(error);
     });continue;
    }

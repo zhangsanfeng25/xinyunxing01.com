@@ -40,18 +40,19 @@
   let dead=false,generation=0,runtime=null,abort=null;
   const viewport=document.createElement('div');viewport.className='detail-runtime-viewport';viewport.style.width='100%';
   const stage=document.createElement('div');stage.className='detail-runtime-stage';viewport.append(stage);
-  const loading=document.createElement('span');loading.className='ui-visually-hidden';loading.role='status';viewport.append(loading);
+  const loading=document.createElement('div');loading.className='detail-runtime-loading';loading.role='status';
+  loading.innerHTML='<span class="ui-spinner" aria-hidden="true"></span><span>正在载入交互预览…</span>';viewport.append(loading);
   toolsRoot.innerHTML='<p data-runtime-message role="status"></p><button type="button" class="secondary" data-runtime-reset hidden>重新加载预览</button>';
   const message=toolsRoot.querySelector('[data-runtime-message]'),retry=toolsRoot.querySelector('[data-runtime-reset]');toolsRoot.hidden=true;
   function stop(){generation++;abort?.abort();abort=null;runtime?.destroy();runtime=null;stage.replaceChildren();}
-  function endLoading(){stage.className='detail-runtime-stage';loading.textContent='';}
+  function endLoading(){stage.className='detail-runtime-stage';loading.hidden=true;}
   function showFailure(reason){
    endLoading();stage.className+=' runtime-unavailable';stage.textContent='交互预览暂不可用';
    message.textContent=reason;retry.hidden=false;toolsRoot.hidden=false;onFallback();
   }
   async function start(){
    stop();if(dead)return;onStart();previewRoot.replaceChildren(viewport);
-   stage.className='detail-runtime-stage ui-skeleton';loading.textContent='正在载入交互预览…';
+   stage.className='detail-runtime-stage ui-skeleton';loading.hidden=false;
    toolsRoot.hidden=true;retry.hidden=true;message.textContent='';const current=generation;abort=new AbortController();
    try{
     const ticket=await requestTicket({signal:abort.signal});if(dead||generation!==current)return;

@@ -3,7 +3,8 @@ function skeleton(message,extra=''){
  return '<div class="ui-skeleton '+extra+'" role="status"><span class="ui-visually-hidden">'+esc(message)+'</span></div>';
 }
 function cardImage(source,title,imageClass='ui-thumbnail'){
- return '<span class="card-image-wrap"><span class="card-image-loading" aria-hidden="true"></span><img class="'+imageClass+'" data-card-image src="'+esc(source)+'" alt="'+esc(title)+'效果" loading="lazy" decoding="async"></span>';
+ const attribute=source.startsWith('/api/v1/')?'data-protected-card-image':'src';
+ return '<span class="card-image-wrap"><span class="card-image-loading" aria-hidden="true"></span><img class="'+imageClass+'" data-card-image '+attribute+'="'+esc(source)+'" alt="'+esc(title)+'效果" loading="lazy" decoding="async"></span>';
 }
 function reviewedCatalogTree(kind){
  const group=(key,title,children)=>({key,title,children});
